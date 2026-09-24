@@ -7,7 +7,11 @@ PKG_VERSION=""
 PKG_LICENSE="various"
 PKG_SITE="https://libreelec.tv"
 PKG_URL=""
-PKG_DEPENDS_TARGET="toolchain iwd networkmanager netbase ethtool openssh iw wireless-regdb rsync tailscale avahi miniupnpc nss-mdns speedtest-cli"
+if [ "${DS_ONLY}" = "true" ] && [ "${DEVICE}" = "RK3566" ]; then
+  PKG_DEPENDS_TARGET="toolchain iwd networkmanager netbase ethtool openssh iw wireless-regdb rsync avahi nss-mdns"
+else
+  PKG_DEPENDS_TARGET="toolchain iwd networkmanager netbase ethtool openssh iw wireless-regdb rsync tailscale avahi miniupnpc nss-mdns speedtest-cli"
+fi
 PKG_SECTION="virtual"
 PKG_LONGDESC="Metapackage for various packages to install network support"
 
@@ -15,24 +19,26 @@ if [ "${BLUETOOTH_SUPPORT}" = "yes" ]; then
   PKG_DEPENDS_TARGET="${PKG_DEPENDS_TARGET} bluez dbussy"
 fi
 
-if [ "${SAMBA_SERVER}" = "yes" ] || [ "$SAMBA_SUPPORT" = "yes" ]; then
+if { [ "${DS_ONLY}" != "true" ] || [ "${DEVICE}" != "RK3566" ]; } && { [ "${SAMBA_SERVER}" = "yes" ] || [ "$SAMBA_SUPPORT" = "yes" ]; }; then
   PKG_DEPENDS_TARGET="${PKG_DEPENDS_TARGET} samba"
 fi
 
-if [ "${SIMPLE_HTTP_SERVER}" = "yes" ]; then
-  PKG_DEPENDS_TARGET="${PKG_DEPENDS_TARGET} simple-http-server"
-fi
+if [ "${DS_ONLY}" != "true" ] || [ "${DEVICE}" != "RK3566" ]; then
+  if [ "${SIMPLE_HTTP_SERVER}" = "yes" ]; then
+    PKG_DEPENDS_TARGET="${PKG_DEPENDS_TARGET} simple-http-server"
+  fi
 
-if [ "${OPENVPN_SUPPORT}" = "yes" ]; then
-  PKG_DEPENDS_TARGET="${PKG_DEPENDS_TARGET} openvpn"
-fi
+  if [ "${OPENVPN_SUPPORT}" = "yes" ]; then
+    PKG_DEPENDS_TARGET="${PKG_DEPENDS_TARGET} openvpn"
+  fi
 
-if [ "${WIREGUARD_SUPPORT}" = "yes" ]; then
-  PKG_DEPENDS_TARGET="${PKG_DEPENDS_TARGET} wireguard-tools"
-fi
+  if [ "${WIREGUARD_SUPPORT}" = "yes" ]; then
+    PKG_DEPENDS_TARGET="${PKG_DEPENDS_TARGET} wireguard-tools"
+  fi
 
-if [ "${ZEROTIER_SUPPORT}" = "yes" ]; then
-  PKG_DEPENDS_TARGET="${PKG_DEPENDS_TARGET} zerotier-one"
+  if [ "${ZEROTIER_SUPPORT}" = "yes" ]; then
+    PKG_DEPENDS_TARGET="${PKG_DEPENDS_TARGET} zerotier-one"
+  fi
 fi
 
 # nss needed by inputstream.adaptive, chromium etc.

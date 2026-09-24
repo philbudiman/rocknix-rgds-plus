@@ -12,6 +12,11 @@ on:
       OWNER_LC:
         required: true
         type: string
+      DS_ONLY:
+        description: "build only DraStic and its required packages"
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   build-aarch64-emu-standalone:
@@ -25,6 +30,7 @@ jobs:
       PROJECT: ${{ inputs.PROJECT }}
       DEVICE: ${{ inputs.DEVICE }}
       ARCH: aarch64
+      DS_ONLY: ${{ inputs.DS_ONLY }}
       CACHE_KEY: ccache-aarch64-${{ inputs.DEVICE }}-emu-standalone-${{ github.sha }}
       DISABLE_COLORS: yes
       CCACHE_COMPILERCHECK: content
@@ -112,33 +118,36 @@ jobs:
         run: rm build.build.aarch64.tar
 
       - name: Download aarch64-rust (${{ inputs.DEVICE }})
+        if: ${{ !inputs.DS_ONLY }}
         uses: actions/download-artifact@v8
         with:
           name: aarch64-rust (${{ inputs.DEVICE }})
 
       - name: Extract artifact aarch64-rust
+        if: ${{ !inputs.DS_ONLY }}
         run: |
           tar --zstd -xf build.aarch64-rust.tar.zst
 
       - name: Clean up compressed aarch64-rust file
+        if: ${{ !inputs.DS_ONLY }}
         run: rm build.aarch64-rust.tar.zst
 
       - name: Download qt6 (${{ inputs.DEVICE }})
-        if: ${{ inputs.DEVICE == 'RK3399' || inputs.DEVICE == 'RK3566' || inputs.DEVICE == 'RK3576' || inputs.DEVICE == 'RK3588' ||
-          inputs.DEVICE == 'S922X'  || inputs.DEVICE == 'SM8250' || inputs.DEVICE == 'SM8550' || inputs.DEVICE == 'SM8650' || inputs.DEVICE == 'SM8750' || inputs.DEVICE == 'SM6115' || inputs.DEVICE == 'SM4450' }}
+        if: ${{ !inputs.DS_ONLY && (inputs.DEVICE == 'RK3399' || inputs.DEVICE == 'RK3566' || inputs.DEVICE == 'RK3576' || inputs.DEVICE == 'RK3588' ||
+          inputs.DEVICE == 'S922X'  || inputs.DEVICE == 'SM8250' || inputs.DEVICE == 'SM8550' || inputs.DEVICE == 'SM8650' || inputs.DEVICE == 'SM8750' || inputs.DEVICE == 'SM6115' || inputs.DEVICE == 'SM4450') }}
         uses: actions/download-artifact@v8
         with:
           name: qt6 (${{ inputs.DEVICE }})
 
       - name: Extract artifact qt6
-        if: ${{ inputs.DEVICE == 'RK3399' || inputs.DEVICE == 'RK3566' || inputs.DEVICE == 'RK3576' || inputs.DEVICE == 'RK3588' ||
-          inputs.DEVICE == 'S922X'  || inputs.DEVICE == 'SM8250' || inputs.DEVICE == 'SM8550' || inputs.DEVICE == 'SM8650' || inputs.DEVICE == 'SM8750' || inputs.DEVICE == 'SM6115' || inputs.DEVICE == 'SM4450' }}
+        if: ${{ !inputs.DS_ONLY && (inputs.DEVICE == 'RK3399' || inputs.DEVICE == 'RK3566' || inputs.DEVICE == 'RK3576' || inputs.DEVICE == 'RK3588' ||
+          inputs.DEVICE == 'S922X'  || inputs.DEVICE == 'SM8250' || inputs.DEVICE == 'SM8550' || inputs.DEVICE == 'SM8650' || inputs.DEVICE == 'SM8750' || inputs.DEVICE == 'SM6115' || inputs.DEVICE == 'SM4450') }}
         run: |
           sudo tar --zstd -xf build.qt6.tar.zst --same-owner
 
       - name: Clean up compressed qt6 file
-        if: ${{ inputs.DEVICE == 'RK3399' || inputs.DEVICE == 'RK3566' || inputs.DEVICE == 'RK3576' || inputs.DEVICE == 'RK3588' ||
-          inputs.DEVICE == 'S922X'  || inputs.DEVICE == 'SM8250' || inputs.DEVICE == 'SM8550' || inputs.DEVICE == 'SM8650' || inputs.DEVICE == 'SM8750' || inputs.DEVICE == 'SM6115' || inputs.DEVICE == 'SM4450' }}
+        if: ${{ !inputs.DS_ONLY && (inputs.DEVICE == 'RK3399' || inputs.DEVICE == 'RK3566' || inputs.DEVICE == 'RK3576' || inputs.DEVICE == 'RK3588' ||
+          inputs.DEVICE == 'S922X'  || inputs.DEVICE == 'SM8250' || inputs.DEVICE == 'SM8550' || inputs.DEVICE == 'SM8650' || inputs.DEVICE == 'SM8750' || inputs.DEVICE == 'SM6115' || inputs.DEVICE == 'SM4450') }}
         run: rm build.qt6.tar.zst
 
       - name: Build

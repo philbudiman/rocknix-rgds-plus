@@ -18,6 +18,14 @@ fi
 . config/options ""
 . projects/${PROJECT}/devices/${DEVICE}/options
 
+if [ "${DS_ONLY}" = "true" ]; then
+  if [ "${PROJECT}" != "ROCKNIX" ] || [ "${DEVICE}" != "RK3566" ]; then
+    echo "DS_ONLY is supported only for ROCKNIX RK3566." >&2
+    exit 1
+  fi
+  export ENABLE_32BIT=false EMULATION_DEVICE=yes
+fi
+
 echo "Building ${DISTRO} for ${DEVICE}"
 
 # Collect packages to clean

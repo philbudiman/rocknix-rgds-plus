@@ -51,6 +51,16 @@ makeinstall_target() {
     cp -a ${PKG_DIR}/config/common/*.cfg ${INSTALL}/usr/config/emulationstation
     rm -f ${INSTALL}/usr/config/emulationstation/resources/logo.png
 
+  if [ "${DS_ONLY}" = "true" ] && [ "${DEVICE}" = "RK3566" ]; then
+    cat <<EOF >${INSTALL}/usr/config/emulationstation/es_settings.cfg
+<?xml version="1.0"?>
+<config>
+  <bool name="StartupOnGameList" value="true" />
+  <string name="StartupSystem" value="nds" />
+</config>
+EOF
+  fi
+
   mkdir -p ${INSTALL}/usr/config/emulationstation/resources
     cp -a ${PKG_BUILD}/resources/* ${INSTALL}/usr/config/emulationstation/resources
     rm -f ${INSTALL}/usr/config/emulationstation/resources/DroidSansFallbackFull.ttf

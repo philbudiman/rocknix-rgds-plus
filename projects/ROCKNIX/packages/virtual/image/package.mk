@@ -33,11 +33,24 @@ PKG_TOOLS="patchelf i2c-tools evtest"
 
 PKG_DEBUG="debug"
 
+if [ "${DS_ONLY}" = "true" ] && [ "${DEVICE}" = "RK3566" ]; then
+  PKG_FONTS="noto-sans-cjk"
+  PKG_GRAPHICS=""
+  PKG_MULTIMEDIA=""
+  PKG_SOUND=""
+  PKG_SYNC=""
+  PKG_TOOLS="i2c-tools evtest"
+fi
+
 if [ "${BASE_ONLY}" = "true" ]
 then
   EMULATION_DEVICE=no
   ENABLE_32BIT=no
   PKG_DEPENDS_TARGET+=" ${PKG_TOOLS} ${PKG_FONTS} misc-packages"
+elif [ "${DS_ONLY}" = "true" ] && [ "${DEVICE}" = "RK3566" ]
+then
+  PKG_DEPENDS_TARGET+=" ${PKG_TOOLS} ${PKG_FONTS} ${PKG_UI} ${PKG_UI_TOOLS} misc-packages"
+  [ "${PIPEWIRE_SUPPORT}" = "yes" ] && PKG_DEPENDS_TARGET+=" alsa pulseaudio pipewire wireplumber"
 else
   PKG_DEPENDS_TARGET+=" ${PKG_TOOLS} ${PKG_FONTS} ${PKG_SOUND} ${PKG_SYNC} ${PKG_GRAPHICS} ${PKG_UI} ${PKG_UI_TOOLS} ${PKG_MULTIMEDIA} misc-packages"
 
@@ -59,10 +72,14 @@ else
 fi
 
 # Device is an emulation focused device
-[ "${EMULATION_DEVICE}" = "yes" ] && PKG_DEPENDS_TARGET+=" emulators gamesupport"
+if [ "${BASE_ONLY}" != "true" ] && { [ "${EMULATION_DEVICE}" = "yes" ] || { [ "${DS_ONLY}" = "true" ] && [ "${DEVICE}" = "RK3566" ]; }; }; then
+  PKG_DEPENDS_TARGET+=" emulators gamesupport"
+fi
 
 # Add support for containers
-[ "${CONTAINER_SUPPORT}" = "yes" ] && PKG_DEPENDS_TARGET+=" ${PKG_TOOLS} docker"
+if [ "${DS_ONLY}" != "true" ] || [ "${DEVICE}" != "RK3566" ]; then
+  [ "${CONTAINER_SUPPORT}" = "yes" ] && PKG_DEPENDS_TARGET+=" ${PKG_TOOLS} docker"
+fi
 
 [ "${DEBUG_PACKAGES}" = "yes" ] && PKG_DEPENDS_TARGET+=" ${PKG_DEBUG}"
 
@@ -79,19 +96,27 @@ fi
 [ "${EXFAT}" = "yes" ] && PKG_DEPENDS_TARGET+=" exfatprogs"
 
 # NFS support
-[ "${NFS_SUPPORT}" = "yes" ] && PKG_DEPENDS_TARGET+=" nfs-utils"
+if [ "${DS_ONLY}" != "true" ] || [ "${DEVICE}" != "RK3566" ]; then
+  [ "${NFS_SUPPORT}" = "yes" ] && PKG_DEPENDS_TARGET+=" nfs-utils"
+fi
 
 # NTFS 3G support
 [ "${NTFS3G}" = "yes" ] && PKG_DEPENDS_TARGET+=" ntfs-3g_ntfsprogs"
 
 # Installer support
-[ "${INSTALLER_SUPPORT}" = "yes" ] && PKG_DEPENDS_TARGET+=" installer"
+if { [ "${DS_ONLY}" != "true" ] || [ "${DEVICE}" != "RK3566" ]; } && [ "${INSTALLER_SUPPORT}" = "yes" ]; then
+  PKG_DEPENDS_TARGET+=" installer"
+fi
 
 # Devtools... (not for Release)
-[ "${TESTING}" = "yes" ] && PKG_DEPENDS_TARGET+=" testing"
+if { [ "${DS_ONLY}" != "true" ] || [ "${DEVICE}" != "RK3566" ]; } && [ "${TESTING}" = "yes" ]; then
+  PKG_DEPENDS_TARGET+=" testing"
+fi
 
 # OEM packages
-[ "${OEM_SUPPORT}" = "yes" ] && PKG_DEPENDS_TARGET+=" oem"
+if { [ "${DS_ONLY}" != "true" ] || [ "${DEVICE}" != "RK3566" ]; } && [ "${OEM_SUPPORT}" = "yes" ]; then
+  PKG_DEPENDS_TARGET+=" oem"
+fi
 
 # htop
 [ "${HTOP_TOOL}" = "yes" ] && PKG_DEPENDS_TARGET+=" htop"
@@ -106,8 +131,10 @@ fi
 [ "${BATTERYPLUS_SUPPORT}" = "yes" ] && PKG_DEPENDS_TARGET+=" batteryplus"
 
 # Entware support
-mkdir -p ${INSTALL}
-ln -sf /storage/.opt ${INSTALL}/opt
-PKG_DEPENDS_TARGET+=" entware"
+if [ "${DS_ONLY}" != "true" ] || [ "${DEVICE}" != "RK3566" ]; then
+  mkdir -p ${INSTALL}
+  ln -sf /storage/.opt ${INSTALL}/opt
+  PKG_DEPENDS_TARGET+=" entware"
+fi
 
 true

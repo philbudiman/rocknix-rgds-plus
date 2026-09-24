@@ -99,20 +99,28 @@ case "${DEVICE}" in
     LIBRETRO_CORES+=" beetle-psx-lr beetle-saturn-lr bsnes-lr bsnes-hd-lr dolphin-lr"
 esac
 
-# Split building emulators into 2 stages, needed to fit the jobs into the 6 hour GH runner time limit.
-case "${TARGET_TYPE}" in
-  cores_only)
-    PKG_DEPENDS_TARGET+=" ${LIBRETRO_CORES}"
-    ;;
-  emus_only)
-    PKG_DEPENDS_TARGET+=" ${PKG_EMUS} ${EMUS_32BIT} ${PKG_RETROARCH}"
-    ;;
-  none)
-    ;;
-  *)
-    PKG_DEPENDS_TARGET+=" ${PKG_EMUS} ${EMUS_32BIT} ${PKG_RETROARCH} ${LIBRETRO_CORES}"
-    ;;
-esac
+if [ "${DS_ONLY}" = "true" ] && [ "${DEVICE}" = "RK3566" ]; then
+  PKG_EMUS="drastic-sa"
+  EMUS_32BIT=""
+  PKG_RETROARCH=""
+  LIBRETRO_CORES=""
+  PKG_DEPENDS_TARGET="drastic-sa"
+else
+  # Split building emulators into 2 stages, needed to fit the jobs into the 6 hour GH runner time limit.
+  case "${TARGET_TYPE}" in
+    cores_only)
+      PKG_DEPENDS_TARGET+=" ${LIBRETRO_CORES}"
+      ;;
+    emus_only)
+      PKG_DEPENDS_TARGET+=" ${PKG_EMUS} ${EMUS_32BIT} ${PKG_RETROARCH}"
+      ;;
+    none)
+      ;;
+    *)
+      PKG_DEPENDS_TARGET+=" ${PKG_EMUS} ${EMUS_32BIT} ${PKG_RETROARCH} ${LIBRETRO_CORES}"
+      ;;
+  esac
+fi
 
 install_script() {
   if [ ! -d "${INSTALL}/usr/config/modules" ]; then
@@ -162,6 +170,11 @@ makeinstall_target() {
 
   ### Apply documentation header
   start_system_doc
+
+  if [ "${DS_ONLY}" = "true" ] && [ "${DEVICE}" = "RK3566" ]; then
+    add_emu_core nds drastic drastic-sa true
+    add_es_system nds
+  else
 
   ### Acorn BBC Micro
   add_emu_core bbcmicro retroarch b2 true
@@ -1699,6 +1712,7 @@ makeinstall_target() {
 
   ### Screenshots
   add_es_system imageviewer
+  fi
 
   ### Create es_systems
   mk_es_systems

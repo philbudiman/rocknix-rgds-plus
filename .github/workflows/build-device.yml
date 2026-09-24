@@ -23,9 +23,15 @@ on:
         description: "build official version"
         type: string
         required: true
+      DS_ONLY:
+        description: "build the DS-only RK3566 Specific image"
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   build-arm:
+    if: ${{ !inputs.DS_ONLY }}
     uses: ./.github/workflows/build-arm.yml
     secrets: inherit
     with:
@@ -42,6 +48,7 @@ jobs:
       OWNER_LC: ${{ inputs.OWNER_LC }}
 
   build-aarch64-rust:
+    if: ${{ !inputs.DS_ONLY }}
     needs: build-aarch64-toolchain
     uses: ./.github/workflows/build-aarch64-rust.yml
     secrets: inherit
@@ -60,6 +67,7 @@ jobs:
       OWNER_LC: ${{ inputs.OWNER_LC }}
 
   build-aarch64-mame-lr:
+    if: ${{ !inputs.DS_ONLY }}
     needs: build-aarch64-toolchain
     uses: ./.github/workflows/build-aarch64-mame-lr.yml
     secrets: inherit
@@ -69,6 +77,7 @@ jobs:
       OWNER_LC: ${{ inputs.OWNER_LC }}
 
   build-aarch64-qt6:
+    if: ${{ !inputs.DS_ONLY }}
     needs: build-aarch64
     uses: ./.github/workflows/build-aarch64-qt6.yml
     secrets: inherit
@@ -82,7 +91,7 @@ jobs:
       - build-aarch64
       - build-aarch64-mame-lr
       - build-aarch64-qt6
-    if: ${{ always() && !cancelled() && !contains(needs.*.result, 'failure')  }}
+    if: ${{ always() && !cancelled() && !inputs.DS_ONLY && !contains(needs.*.result, 'failure')  }}
     uses: ./.github/workflows/build-aarch64-emu-libretro.yml
     secrets: inherit
     with:
@@ -102,6 +111,7 @@ jobs:
       PROJECT: ${{ inputs.PROJECT }}
       DEVICE: ${{ inputs.DEVICE }}
       OWNER_LC: ${{ inputs.OWNER_LC }}
+      DS_ONLY: ${{ inputs.DS_ONLY }}
 
   build-aarch64-image:
     needs:
@@ -117,6 +127,7 @@ jobs:
       OWNER_LC: ${{ inputs.OWNER_LC }}
       NIGHTLY: ${{ inputs.NIGHTLY }}
       OFFICIAL: ${{ inputs.OFFICIAL }}
+      DS_ONLY: ${{ inputs.DS_ONLY }}
 
   purge-artifact:
     name: Artifacts cleanup

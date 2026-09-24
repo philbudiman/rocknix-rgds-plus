@@ -12,6 +12,11 @@ unset _CACHE_PACKAGE_LOCAL _CACHE_PACKAGE_GLOBAL _DEBUG_DEPENDS_LIST _DEBUG_PACK
 
 ${SCRIPTS}/checkdeps
 
+# The DS-only profile targets the RK3566 Specific image (RG DS Plus).
+if [ "${DS_ONLY}" = "true" ] && [ "${DEVICE}" = "RK3566" ]; then
+  SUBDEVICES="Specific"
+fi
+
 # Setup both toolchain cmake configs to avoid potentially racy behaviour later.
 # Use a fork for host to isolate any variable modifications.
 (setup_toolchain host)
@@ -48,6 +53,7 @@ function do_mkimage() {
     STORAGE_SIZE="${STORAGE_SIZE:-32}" \
     OVA_SIZE="${OVA_SIZE}" \
     SUBDEVICE="${SUBDEVICE}" \
+    DS_ONLY="${DS_ONLY}" \
     ${SCRIPTS}/mkimage
 }
 
