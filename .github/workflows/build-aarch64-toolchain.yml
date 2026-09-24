@@ -17,7 +17,6 @@ jobs:
   build-aarch64-toolchain:
     runs-on: ubuntu-24.04
     permissions:
-      actions: write
       contents: read
     env:
       JAVA_HOME: /usr
