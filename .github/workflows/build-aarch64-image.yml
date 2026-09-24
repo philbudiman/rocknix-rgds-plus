@@ -20,6 +20,11 @@ on:
         description: "build official version"
         type: string
         required: true
+      DS_ONLY:
+        description: "build the DS-only RK3566 Specific image"
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   build-aarch64-image:
@@ -30,6 +35,7 @@ jobs:
       PROJECT: ${{ inputs.PROJECT }}
       DEVICE: ${{ inputs.DEVICE }}
       ARCH: aarch64
+      DS_ONLY: ${{ inputs.DS_ONLY }}
       CACHE_KEY: ccache-aarch64-${{ inputs.DEVICE }}-image-${{ github.sha }}
       DISABLE_COLORS: yes
       CCACHE_COMPILERCHECK: content
@@ -51,31 +57,34 @@ jobs:
           fetch-depth: 0
 
       - name: Download arm (${{ inputs.DEVICE }})
-        if: ${{ inputs.DEVICE != 'SM8650' && inputs.DEVICE != 'SM8750' }}
+        if: ${{ !inputs.DS_ONLY && inputs.DEVICE != 'SM8650' && inputs.DEVICE != 'SM8750' }}
         uses: actions/download-artifact@v8
         with:
           name: arm (${{ inputs.DEVICE }})
 
       - name: Extract artifact arm
-        if: ${{ inputs.DEVICE != 'SM8650' && inputs.DEVICE != 'SM8750' }}
+        if: ${{ !inputs.DS_ONLY && inputs.DEVICE != 'SM8650' && inputs.DEVICE != 'SM8750' }}
         run: |
           tar --zstd -xf build.arm.tar.zst
 
       - name: Clean up compressed arm file
-        if: ${{ inputs.DEVICE != 'SM8650' && inputs.DEVICE != 'SM8750' }}
+        if: ${{ !inputs.DS_ONLY && inputs.DEVICE != 'SM8650' && inputs.DEVICE != 'SM8750' }}
         run: rm build.arm.tar.zst
         
       - name: Download emu-libretro (${{ inputs.DEVICE }})
+        if: ${{ !inputs.DS_ONLY }}
         uses: actions/download-artifact@v8
         with:
           name: emu-libretro (${{ inputs.DEVICE }})
 
       - name: Extract artifact emu-libretro
+        if: ${{ !inputs.DS_ONLY }}
         run: |
           cat build.emu-libretro.tar.part* > build.emu-libretro.tar
           tar -xf build.emu-libretro.tar
 
       - name: Clean up compressed emu-libretro file
+        if: ${{ !inputs.DS_ONLY }}
         run: rm build.emu-libretro.tar*
 
       - name: Download emu-standalone (${{ inputs.DEVICE }})
@@ -93,6 +102,7 @@ jobs:
 
       # clean to rebuild retroarch with 32bit enabled
       - name: Clean retroarch
+        if: ${{ !inputs.DS_ONLY }}
         run: |
           ./scripts/get_env > .env
           docker run --init --env-file .env --rm --user $(id -u):$(id -g) -v ${PWD}:${PWD} -w ${PWD} "ghcr.io/${{ inputs.OWNER_LC }}/rocknix-build:latest" \
