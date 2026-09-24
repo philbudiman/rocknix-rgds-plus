@@ -102,20 +102,18 @@ def run_gui():
     status = tk.Label(root, bg="#111923", fg="#aab8c3", font=("Helvetica", 13))
     status.pack(anchor="w", padx=20, pady=(12, 16))
 
-    def show(frame, container):
-        for child in (top_library, top_running) if container is top else (bottom_library, bottom_running):
-            child.place_forget()
+    for frame in (top_library, top_running, bottom_library, bottom_running):
         frame.place(x=0, y=0, relwidth=1, relheight=1)
 
     def render():
         if model.running:
-            show(top_running, top)
-            show(bottom_running, bottom)
+            top_running.tkraise()
+            bottom_running.tkraise()
             running_game.configure(text=model.game)
             status.configure(text="Simulated DraStic session · Esc or Return goes back. No ROM is running.")
         else:
-            show(top_library, top)
-            show(bottom_library, bottom)
+            top_library.tkraise()
+            bottom_library.tkraise()
             game_list.selection_clear(0, tk.END)
             if model.game:
                 game_list.selection_set(model.selected)
