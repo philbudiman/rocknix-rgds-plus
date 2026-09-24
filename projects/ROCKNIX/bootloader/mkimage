@@ -35,17 +35,22 @@ mkimage_extlinux() {
     mcopy -s -o "${RELEASE_DIR}/3rdparty/bootloader/extlinux" ::
   else
     local fdt_type
+    local fdt
     local fdt_overlays
     fdt_type=$(get_fdt_type)
+    fdt=$(get_fdt)
     fdt_overlays=$(get_fdt_overlays)
+    if [ "${DS_ONLY}" = "true" ] && [ "${DEVICE}" = "RK3566" ] && [ "${SUBDEVICE}" = "Specific" ]; then
+      fdt="device_trees/rk3568-anbernic-rg-ds-plus.dtb"
+    fi
 
-    echo "image: set extlinux.conf to $fdt_type /$(get_fdt)..."
+    echo "image: set extlinux.conf to $fdt_type /${fdt}..."
     mkdir -p "${IMG_TMP}/extlinux"
 
     cat << EOF > "${IMG_TMP}/extlinux/extlinux.conf"
 LABEL ${DISTRO}
   LINUX /${KERNEL_NAME}
-  ${fdt_type} /$(get_fdt)
+  ${fdt_type} /${fdt}
   APPEND boot=LABEL=${DISTRO_BOOTLABEL} disk=LABEL=${DISTRO_DISKLABEL} ${EXTRA_CMDLINE}
 EOF
 
