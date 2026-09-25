@@ -581,6 +581,9 @@ SDL_Window* SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint
 
 void SDL_SetWindowSize(SDL_Window* window, int w, int h) {
     static int init_resize = 2;
+    static int menu_zoom = 0;
+    static int game_logical_width = 0;
+    static int game_logical_height = 0;
 
     if (init_resize > 0) {
         real_SDL_SetWindowSize(window, w, h);
@@ -591,6 +594,12 @@ void SDL_SetWindowSize(SDL_Window* window, int w, int h) {
     // Also check if this is a resize after init, if so, toggle a scale down to allow DraStic menu visibility
     if (init_resize == 0) {
         real_SDL_SetWindowSize(window, phys_width, phys_height);
+        if (menu_zoom) {
+            real_SDL_RenderSetLogicalSize(renderer, game_logical_width, game_logical_height);
+            logical_width = game_logical_width;
+            logical_height = game_logical_height;
+            menu_zoom = 0;
+        }
         init_resize = -1;
     } else if (init_resize == -1) {
         if (xy_idx == 1)
@@ -598,7 +607,18 @@ void SDL_SetWindowSize(SDL_Window* window, int w, int h) {
         if (xy_idx == 2)
             h = phys_height / 2;
 
+        int zoom_menu = xy_idx == 1 && h < phys_height && renderer;
+        if (zoom_menu) {
+            SDL_RenderGetLogicalSize(renderer, &game_logical_width, &game_logical_height);
+            h = phys_height;
+        }
+
         real_SDL_SetWindowSize(window, w, h);
+        if (zoom_menu && real_SDL_RenderSetLogicalSize(renderer, 640, 480) == 0) {
+            logical_width = 640;
+            logical_height = 480;
+            menu_zoom = 1;
+        }
         init_resize = 0;
     }
 
