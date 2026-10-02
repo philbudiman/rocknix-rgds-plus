@@ -82,7 +82,7 @@ calculate_stamp() {
     assert key(SUSPEND='false') != original, 'suspend variants must remain separate'
     assert key(BASEOS='no') != original, 'build profiles must remain separate'
     other = root / 'relocated'
-    shutil.copytree(root, other, ignore=shutil.ignore_patterns('relocated'))
+    shutil.copytree(root, other, symlinks=True, ignore=shutil.ignore_patterns('relocated'))
     moved = subprocess.run(['bash', '.github/scripts/toolchain-cache-key.sh', 'toolchain'], cwd=other, env=env, check=True, capture_output=True, text=True)
     assert moved.stdout.strip() != original, 'archives cannot move between absolute build paths'
     write('packages.json', 'invalid graph\n')
