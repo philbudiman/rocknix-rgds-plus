@@ -435,6 +435,11 @@ SOURCE=$1
 # Action = open / close
 ACTION=$2
 
+# BaseOS assigns Power to logind shutdown handling; only the lid may request sleep.
+if [[ "${SOURCE}" = "power" && -f /usr/lib/systemd/logind.conf.d/60-baseos-power.conf ]]; then
+  exit 0
+fi
+
 # Check if HDMI is connected
 check_hdmi_connected
 HDMI_CONNECTED=$?

@@ -106,6 +106,7 @@ jobs:
           test ! -e "$image/usr/bin/emulationstation"
           test ! -e "$image/usr/lib/autostart/common/111-sway-init"
           cmp projects/ROCKNIX/packages/baseos/baseos/config/sway.config "$image/usr/share/sway/config"
+          cmp projects/ROCKNIX/packages/baseos/baseos/config/60-baseos-power.conf "$image/usr/lib/systemd/logind.conf.d/60-baseos-power.conf"
 
       - name: Get date
         run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV

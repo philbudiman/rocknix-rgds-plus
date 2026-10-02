@@ -19,6 +19,8 @@ makeinstall_target() {
   mkdir -p ${INSTALL}/usr/bin
     cp ${PKG_DIR}/scripts/baseos-launch ${INSTALL}/usr/bin
     chmod 0755 ${INSTALL}/usr/bin/baseos-launch
+  mkdir -p ${INSTALL}/usr/lib/systemd/logind.conf.d
+    cp ${PKG_DIR}/config/60-baseos-power.conf ${INSTALL}/usr/lib/systemd/logind.conf.d
   mkdir -p ${INSTALL}/usr/share/sway ${INSTALL}/usr/lib/modules-load.d
     cp ${PKG_DIR}/config/sway.config ${INSTALL}/usr/share/sway/config
     echo panfrost > ${INSTALL}/usr/lib/modules-load.d/baseos.conf

@@ -191,8 +191,26 @@ Corrective build [37051990104](https://github.com/philbudiman/rocknix-rgds-plus/
 started at `26aaae743a` with stock suspend enabled. Follow-up will verify the
 downloaded image before the next GPU/microphone device test.
 
-No power-button policy or physical Back mapping is changed: Menu modifier chords,
-true shutdown/cold boot and controlled suspend/wake still require device evidence.
+Physical Back mapping remains unchanged. The lid-only power policy below, Menu
+modifier chords, true shutdown/cold boot and suspend/wake require device evidence.
+
+## BaseOS power policy: lid-only sleep
+
+BaseOS now installs a vendor logind drop-in: short Power presses are ignored
+while running, a five-second hold requests clean poweroff, and lid close requests
+suspend (including on external power or when docked). The packaged systemd 255.8
+source confirms its five-second long-press timer. Unlike the old long-press-ignore
+setting, this distinguishes short/long presses instead of suspending immediately
+on the initial press. The shared fake-suspend handler also ignores Power when
+this BaseOS policy is installed, so changing the suspend mode to `off` cannot
+restore Power-triggered fake sleep. Ordinary ROCKNIX policy remains unchanged.
+
+Power still starts the device when off; hardware may also wake it from sleep.
+Opening the lid is the intended wake path. Cold-start, held-key events, clean
+shutdown, wake and audio/touch recovery need hardware confirmation. This userspace
+change does not prove the reported first-press cold-start issue is fixed, and
+cannot remove a PMIC's forced-off behavior on an excessively long hold.
+`system.txt` now includes the effective logind configuration for diagnosis.
 
 ## Remaining bring-up work
 
@@ -214,14 +232,14 @@ true shutdown/cold boot and controlled suspend/wake still require device evidenc
   can turn them back on; subsequent holds can change the LED to green and
   alternate between apparent off/on states. These are user observations,
   not confirmed clean shutdowns or cold boots.
-- [ ] Provide a dependable clean-shutdown control and verify cold boot after
+- [ ] Hardware-test the new long-press clean-shutdown control and verify cold boot after
   shutdown, including card removal/reinsertion. Image 18 inherits
   `HandlePowerKey=suspend`, with `HandlePowerKeyLongPress=ignore` shown as the
   default in its logind configuration. Capture button-event and suspend/resume/
   shutdown logs before assigning a cause; the first boot report ends before
   these interactions. Dark screens and an extinguished LED alone do not prove
   shutdown. Use an explicit `poweroff` command when available before removing
-  cards; do not rely on holding Power as a clean-shutdown action.
+  cards on image 19; retest the new policy before relying on its long-press shutdown.
 - [ ] Verify lid/power suspend and wake, display/audio/touch recovery, sleep
   drain and subsequent stock-card boot without disconnecting the battery.
 - [ ] After basic bring-up succeeds, port MinUI and `rgds-hwkeys` from

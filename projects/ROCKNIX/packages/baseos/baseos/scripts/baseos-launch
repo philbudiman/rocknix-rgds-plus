@@ -47,6 +47,7 @@ report() {
       echo "${cfg}"
       awk '/^\[/{section=$0} section=="[video]" && /^[[:space:]]*(gpu3d|screen|layout|dual_window|vsync)[[:space:]]*=/ {print}' "${cfg}"
     done
+    echo "== power/lid policy"; timeout 5 systemd-analyze cat-config systemd/logind.conf 2>&1
     echo "== mem_sleep"; cat /sys/power/mem_sleep 2>&1
     echo "== suspend stats"; grep -H . /sys/power/suspend_stats/* 2>&1
     echo "== pm config"; dmesg | grep -iE 'rockchip-pm-config|rk8|rk817' 2>&1

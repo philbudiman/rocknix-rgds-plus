@@ -99,6 +99,28 @@ with tempfile.TemporaryDirectory() as temporary:
     assert bash('cfg=$1; ' + filter_command, config_file).splitlines() == [
         'gpu3d = false', 'layout = horizontal']
 
+# BaseOS package installs vendor logind policy, without touching stock builds.
+import configparser
+with tempfile.TemporaryDirectory() as temporary:
+    image = Path(temporary)
+    bash('INSTALL=$1; PKG_DIR=$2; VULKAN=vulkan-loader; source "$PKG_DIR/package.mk"; makeinstall_target', image, b)
+    policy_path = image / 'usr/lib/systemd/logind.conf.d/60-baseos-power.conf'
+    policy = configparser.ConfigParser()
+    policy.read(policy_path)
+    assert dict(policy['Login']) == {
+        'handlepowerkey': 'ignore', 'handlepowerkeylongpress': 'poweroff',
+        'handlelidswitch': 'suspend', 'handlelidswitchexternalpower': 'suspend',
+        'handlelidswitchdocked': 'suspend'}
+    fake = (r / 'projects/ROCKNIX/packages/rocknix/sources/scripts/rocknix-fake-suspend').read_text()
+    subprocess.run(['bash', '-n', str(r / 'projects/ROCKNIX/packages/rocknix/sources/scripts/rocknix-fake-suspend')], check=True)
+    guard = fake[fake.index('# BaseOS assigns Power'):fake.index('# Check if HDMI is connected', fake.index('# BaseOS assigns Power'))]
+    guard = guard.replace('/usr/lib/systemd/logind.conf.d/60-baseos-power.conf', '"$POLICY"')
+    assert bash('SOURCE=power; POLICY=$1; ' + guard + 'echo continued', policy_path) == ''
+    assert bash('SOURCE=lid; POLICY=$1; ' + guard + 'echo continued', policy_path).strip() == 'continued'
+    policy_path.unlink()
+    assert bash('SOURCE=power; POLICY=$1; ' + guard + 'echo continued', policy_path).strip() == 'continued'
+print('PASS: BaseOS lid-only sleep, long-press shutdown and ordinary fake-suspend preservation')
+
 # Reports must survive boot-008/009 rather than treating the suffix as octal.
 count = launcher[launcher.index('n=$(('):launcher.index('\nLOG=')]
 assert bash('last=008; ' + count + '; echo "$n"').strip() == '9'
