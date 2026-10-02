@@ -144,6 +144,14 @@ but audible playback and volume control are now confirmed for the tested session
 - [ ] Retest corrected panel assignment and lower touch; measure FPS/speed/timings,
   confirm GPU 3D and physical menu/back mappings. Investigate speaker startup
   errors if playback or resume audio becomes unreliable.
+- [ ] Test real microphone input in a game that requests it. DSperate 3.0.0
+  enables `audio.mic` by default and lazily opens ALSA `plughw:0,0` on the game's
+  first microphone read. Boot 002 identifies card 0 as `rk817_hp`; the DS Plus
+  DT routes `MICL` to `Mic Jack`, and ALSA is included. Capture/mixer routing and
+  gain still need hardware confirmation; playback alone does not prove capture.
+  Use `DS_MIC_LOG=1` during a focused test to log sample counts/peak/RMS, and
+  distinguish actual microphone input from the synthetic `mic = leftstick`
+  hotkey. No microphone-specific patch is justified by the current reports.
 - [ ] Diagnose power-button behavior reported on BaseOS 18: after card removal
   and reinsertion, the first hold appears to do nothing and the second starts
   the device. While running, holding Power turns screens/LED off, but release
