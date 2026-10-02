@@ -187,6 +187,10 @@ not copy whole emulator configuration files containing account credentials.
 `DS_MIC_LOG=1` adds microphone sample/peak/RMS reports without recording speech.
 Use a game that actually reads the microphone; DSperate opens capture lazily.
 Synthetic mic hotkeys must be left unused during the real microphone test.
+Corrective build [37051990104](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37051990104)
+started at `26aaae743a` with stock suspend enabled. Follow-up will verify the
+downloaded image before the next GPU/microphone device test.
+
 No power-button policy or physical Back mapping is changed: Menu modifier chords,
 true shutdown/cold boot and controlled suspend/wake still require device evidence.
 
