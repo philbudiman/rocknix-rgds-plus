@@ -122,8 +122,15 @@ and explicitly sets `DS_DUAL_SCREENS=upper=1,lower=0` for DSperate's native dmab
 fullscreen targets, which use output indices independently of window rules.
 This correction still requires hardware retesting. Corrective build
 [37038104273](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37038104273)
-started from `f0360355cb` with suspend enabled; scheduled follow-up is active
-until its downloaded image is verified and handed over.
+completed from `f0360355cb` with suspend enabled and published
+[BaseOS 19](https://github.com/philbudiman/rocknix-rgds-plus/releases/tag/rocknix-baseos-19-37038104273).
+Downloaded-image verification passed: checksum, DS Plus boot tree, compiled
+2,000,000 µA charging limit, panel clocks, corrected Sway/touch assignment and
+DSperate output/timing environment all match the intended sources. Frontend
+initializer/libmali remain absent; Panfrost/GPU3D remain enabled. Persistent
+compiler caches were saved. These checks are off-device; retest physical screen
+order and lower touch before claiming the correction works on hardware.
+Scheduled follow-up stops at this verified-image handoff.
 
 The next image enables DSperate's existing `DS_FPS=1` and `DS_FRAME_STATS=1`:
 `dsperate.log` receives FPS, percent of nominal DS speed, emulation/presentation/
@@ -170,6 +177,8 @@ but audible playback and volume control are now confirmed for the tested session
   drain and subsequent stock-card boot without disconnecting the battery.
 - [ ] After basic bring-up succeeds, port MinUI and `rgds-hwkeys` from
   `philbudiman/ds-plus-minios`, including brightness and KMS CTM/gamma night mode.
+  Include its button, touchscreen and microphone test apps in MinUI Tools,
+  adapting miniOS paths and hardware access to ROCKNIX.
 
 ## Focused hardware test
 
