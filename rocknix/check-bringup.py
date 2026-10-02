@@ -85,11 +85,19 @@ for expected in ('workspace 1 output DSI-2', 'workspace 2 output DSI-1',
 command = next(line for line in launcher.splitlines() if '/usr/bin/start_dsperate.sh' in line)
 with tempfile.TemporaryDirectory() as temporary:
     bash('''LOG=$1; rom='game with spaces.nds'
-start_dsperate() { printf '%s\n' "$DS_DUAL_SCREENS" "$DS_FPS" "$DS_FRAME_STATS" "$1" "$2"; }
+start_dsperate() { printf '%s\n' "$DS_DUAL_SCREENS" "$DS_FPS" "$DS_FRAME_STATS" "$DS_GPU3D" "$DS_MIC_LOG" "$1" "$2"; }
 ''' + command.replace('/usr/bin/start_dsperate.sh', 'start_dsperate'), temporary)
     assert (Path(temporary) / 'dsperate.log').read_text().splitlines() == [
-        'upper=1,lower=0', '1', '1', 'game with spaces.nds', 'nds']
-print('PASS: physical panel/touch mapping and DSperate timing diagnostics')
+        'upper=1,lower=0', '1', '1', '1', '1', 'game with spaces.nds', 'nds']
+print('PASS: physical panel/touch mapping, explicit GPU request and timing/mic diagnostics')
+
+# Reports expose video settings, not credentials from other INI sections.
+filter_command = next(line for line in launcher.splitlines() if "awk '/^" in line)
+with tempfile.TemporaryDirectory() as temporary:
+    config_file = Path(temporary) / 'dsperate.ini'
+    config_file.write_text('[video]\ngpu3d = false\nlayout = horizontal\n[cheevos]\ntoken = secret-fixture\n[paths]\ngpu3d = private-fixture\n')
+    assert bash('cfg=$1; ' + filter_command, config_file).splitlines() == [
+        'gpu3d = false', 'layout = horizontal']
 
 # Reports must survive boot-008/009 rather than treating the suffix as octal.
 count = launcher[launcher.index('n=$(('):launcher.index('\nLOG=')]

@@ -167,6 +167,29 @@ separate `adc-keys-back` input emitting `BTN_Z`, without an explicit DSperate
 binding. Confirm its events in the planned button test app before assigning an
 action; it must not be confused with SDL `back`, which represents DS Select.
 
+## GPU 3D and microphone investigation after boot 004
+
+The image's RG DS INI requests GPU 3D, but boot 004 has neither `gpu3d: on` nor
+`gpu3d: unavailable` from the actual emulator, which contains both messages.
+The v3.0.0 configuration parser was compiled off-device against the extracted
+image INIs: the generic RK3566 INI leaves GPU 3D off, the RG DS INI enables it,
+and later per-game settings can override it. The device's effective persisted
+configuration is not in earlier reports, so its exact origin remains unknown.
+
+The BaseOS launcher now supplies `DS_GPU3D=1`, which v3.0.0 applies after loading
+configuration. This makes BaseOS's intended GPU mode explicit without replacing
+saved configurations or changing ordinary ROCKNIX launches. The next report must
+contain `gpu3d: on` or a concrete failure reason; shader/rendering success still
+requires hardware testing. `system.txt` records only relevant video settings from
+the persisted/per-game INIs, plus ALSA cards/capture devices/mixer state. It does
+not copy whole emulator configuration files containing account credentials.
+
+`DS_MIC_LOG=1` adds microphone sample/peak/RMS reports without recording speech.
+Use a game that actually reads the microphone; DSperate opens capture lazily.
+Synthetic mic hotkeys must be left unused during the real microphone test.
+No power-button policy or physical Back mapping is changed: Menu modifier chords,
+true shutdown/cold boot and controlled suspend/wake still require device evidence.
+
 ## Remaining bring-up work
 
 - [x] User confirmed gameplay, audible sound and volume buttons with the actual ROM.

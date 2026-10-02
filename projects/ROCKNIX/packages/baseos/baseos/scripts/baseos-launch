@@ -38,6 +38,15 @@ report() {
     echo "== modetest -c"; modetest -c 2>&1
     echo "== backlight"; grep -H . /sys/class/backlight/*/brightness /sys/class/backlight/*/max_brightness 2>&1
     echo "== power_supply"; grep -H . /sys/class/power_supply/*/{status,capacity,voltage_now,current_now,voltage_avg,current_avg,charge_now,constant_charge_current_max,input_current_limit} 2>&1
+    echo "== ALSA cards"; cat /proc/asound/cards /proc/asound/pcm 2>&1
+    echo "== ALSA capture devices"; timeout 5 arecord -l 2>&1
+    echo "== RK817 mixer"; timeout 5 amixer -c 0 contents 2>&1
+    echo "== DSperate video settings"
+    for cfg in /storage/.config/dsperate/dsperate.ini /storage/.config/dsperate/games/*.ini; do
+      [ -f "${cfg}" ] || continue
+      echo "${cfg}"
+      awk '/^\[/{section=$0} section=="[video]" && /^[[:space:]]*(gpu3d|screen|layout|dual_window|vsync)[[:space:]]*=/ {print}' "${cfg}"
+    done
     echo "== mem_sleep"; cat /sys/power/mem_sleep 2>&1
     echo "== suspend stats"; grep -H . /sys/power/suspend_stats/* 2>&1
     echo "== pm config"; dmesg | grep -iE 'rockchip-pm-config|rk8|rk817' 2>&1
@@ -77,8 +86,9 @@ fi
 
 if [ -n "${rom}" ]; then
   echo "rom: ${rom}" >> "${LOG}/launch.txt"
+  echo "GPU 3D requested: DS_GPU3D=1; microphone diagnostics: DS_MIC_LOG=1" >> "${LOG}/launch.txt"
   start=$(date +%s)
-  DS_DUAL_SCREENS=upper=1,lower=0 DS_FPS=1 DS_FRAME_STATS=1 /usr/bin/start_dsperate.sh "${rom}" nds > "${LOG}/dsperate.log" 2>&1
+  DS_GPU3D=1 DS_MIC_LOG=1 DS_DUAL_SCREENS=upper=1,lower=0 DS_FPS=1 DS_FRAME_STATS=1 /usr/bin/start_dsperate.sh "${rom}" nds > "${LOG}/dsperate.log" 2>&1
   echo "exit: $? after $(( $(date +%s) - start ))s" >> "${LOG}/launch.txt"
 else
   echo "no ROM: put a .nds in roms/nds or a path in roms/baseos/autostart.txt" >> "${LOG}/launch.txt"
