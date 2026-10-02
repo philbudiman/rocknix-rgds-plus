@@ -111,6 +111,29 @@ Speaker amplifier initialization errors also appear in the report. Gameplay,
 GPU 3D, audible sound, touch and suspend remain unconfirmed; retest the actual
 ROM first before changing audio or GPU behavior.
 
+## Remaining bring-up work
+
+- [ ] Verify gameplay, GPU 3D, lower-screen touch and audible sound using the
+  actual ROM; investigate the speaker initialization errors if sound fails.
+- [ ] Diagnose power-button behavior reported on BaseOS 18: after card removal
+  and reinsertion, the first hold appears to do nothing and the second starts
+  the device. While running, holding Power turns screens/LED off, but release
+  can turn them back on; subsequent holds can change the LED to green and
+  alternate between apparent off/on states. These are user observations,
+  not confirmed clean shutdowns or cold boots.
+- [ ] Provide a dependable clean-shutdown control and verify cold boot after
+  shutdown, including card removal/reinsertion. Image 18 inherits
+  `HandlePowerKey=suspend`, with `HandlePowerKeyLongPress=ignore` shown as the
+  default in its logind configuration. Capture button-event and suspend/resume/
+  shutdown logs before assigning a cause; the first boot report ends before
+  these interactions. Dark screens and an extinguished LED alone do not prove
+  shutdown. Use an explicit `poweroff` command when available before removing
+  cards; do not rely on holding Power as a clean-shutdown action.
+- [ ] Verify lid/power suspend and wake, display/audio/touch recovery, sleep
+  drain and subsequent stock-card boot without disconnecting the battery.
+- [ ] After basic bring-up succeeds, port MinUI and `rgds-hwkeys` from
+  `philbudiman/ds-plus-minios`, including brightness and KMS CTM/gamma night mode.
+
 ## Focused hardware test
 
 1. Flash the new **BaseOS Specific** image to spare TF1. Check its checksum and
