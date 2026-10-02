@@ -49,6 +49,7 @@ LOCAL_CC="$ROOT/compiler"
 LOCAL_CXX="$ROOT/compiler"
 PKG_NAME="${1%%:*}"
 calculate_stamp() {
+  find optional-patches -type f 2>/dev/null | sha256sum
   sha256sum "packages/$PKG_NAME/package.mk"
   if [ -f "projects/ROCKNIX/packages/$PKG_NAME/package.mk" ]; then
     sha256sum "projects/ROCKNIX/packages/$PKG_NAME/package.mk"

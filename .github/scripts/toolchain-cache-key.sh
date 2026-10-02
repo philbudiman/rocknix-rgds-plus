@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -eo pipefail
+set -Eeo pipefail
+trap 'echo "Toolchain cache key failed at ${BASH_SOURCE[0]}:$LINENO" >&2' ERR
 
 . config/options ""
 tmp=$(mktemp -d)
@@ -40,6 +41,8 @@ PY
     "projects/$PROJECT/devices/$DEVICE/linux" | xargs -0 sha256sum
   while IFS= read -r package; do
     (
+      # Native stamp hashing tolerates missing optional patch directories.
+      set +o pipefail
       . config/options "$package"
       printf '%s ' "$package"
       calculate_stamp
