@@ -90,3 +90,14 @@
 
   # Disk Swap
     SWAP_FILE_SIZE="0"
+
+# BaseOS starts Sway before frontend GPU switching.
+if [ "${BASEOS}" = "yes" ]; then
+  GRAPHIC_DRIVERS="panfrost"
+  ADDITIONAL_DRIVERS=""
+  ADDITIONAL_PACKAGES=""
+  ADDITIONAL_PACKAGES_32BIT=""
+  ENABLE_32BIT="no"
+  EMULATION_DEVICE="no"
+  BATTERYPLUS_SUPPORT="no"
+fi

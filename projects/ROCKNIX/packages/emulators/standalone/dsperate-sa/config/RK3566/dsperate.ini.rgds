@@ -30,6 +30,7 @@ cache = /storage/.cache/dsperate
 fullscreen = true
 layout = horizontal
 vsync = true
+gpu3d = true                    # 3D on the GPU (Vulkan); new in 3.0.0
 
 [audio]
 

@@ -1,0 +1,180 @@
+From 5e73c37084d67de07c6e398be99e47de0b108301 Mon Sep 17 00:00:00 2001
+From: Phillip Budiman <phillipbudiman@gmail.com>
+Date: Wed, 30 Sep 2026 09:49:11 -0700
+Subject: [PATCH] soc: rockchip: add suspend config driver for RK3568
+
+On the RK3568 the deep suspend states are run by the Rockchip TF-A (BL31).
+The BSP kernel tells it how deep to go and what may wake the system via
+the SIP_SUSPEND_MODE SMC call (drivers/soc/rockchip/rockchip_pm_config.c);
+mainline doesn't, so BL31 uses its defaults.
+
+This is ROCKNIX's PX30S port of that driver
+(devices/RK3326/patches/linux/031-px30s-suspend-wakeup-config.patch) with
+the rockchip,pm-rk3568 compatible added and the BSP's GPIO power config
+list terminator sent at probe. It forwards rockchip,sleep-mode-config,
+rockchip,wakeup-config and rockchip,sleep-debug-en at probe, and before
+every suspend sends LINUX_PM_STATE followed by the mode and wakeup config
+again, as the BSP does.
+---
+ drivers/soc/rockchip/Kconfig              |  11 ++
+ drivers/soc/rockchip/Makefile             |   1 +
+ drivers/soc/rockchip/rockchip-pm-config.c | 117 ++++++++++++++++++++++
+ 3 files changed, 129 insertions(+)
+ create mode 100644 drivers/soc/rockchip/rockchip-pm-config.c
+
+diff --git a/drivers/soc/rockchip/Kconfig b/drivers/soc/rockchip/Kconfig
+index 785f60c6f..d257cd486 100644
+--- a/drivers/soc/rockchip/Kconfig
++++ b/drivers/soc/rockchip/Kconfig
+@@ -14,6 +14,17 @@ config ROCKCHIP_GRF
+ 	  In a lot of cases there also need to be default settings initialized
+ 	  to make some of them conform to expectations of the kernel.
+ 
++config ROCKCHIP_PM_CONFIG
++	bool "Rockchip suspend configuration for BL31"
++	depends on OF && HAVE_ARM_SMCCC && SUSPEND
++	default y if ARCH_ROCKCHIP
++	help
++	  Forward the board's suspend mode and wakeup source configuration
++	  (the rockchip-suspend node) to the Rockchip TF-A (BL31) firmware
++	  through SIP calls, as the Rockchip BSP kernel does. Needed for the
++	  firmware-controlled deep suspend states to be set up the same way
++	  as on the vendor firmware.
++
+ config ROCKCHIP_IODOMAIN
+ 	tristate "Rockchip IO domain support"
+ 	depends on OF
+diff --git a/drivers/soc/rockchip/Makefile b/drivers/soc/rockchip/Makefile
+index 23d414433..4820bafd1 100644
+--- a/drivers/soc/rockchip/Makefile
++++ b/drivers/soc/rockchip/Makefile
+@@ -3,5 +3,6 @@
+ # Rockchip Soc drivers
+ #
+ obj-$(CONFIG_ROCKCHIP_GRF) += grf.o
++obj-$(CONFIG_ROCKCHIP_PM_CONFIG) += rockchip-pm-config.o
+ obj-$(CONFIG_ROCKCHIP_IODOMAIN) += io-domain.o
+ obj-$(CONFIG_ROCKCHIP_DTPM) += dtpm.o
+diff --git a/drivers/soc/rockchip/rockchip-pm-config.c b/drivers/soc/rockchip/rockchip-pm-config.c
+new file mode 100644
+index 000000000..2bd2c8b50
+--- /dev/null
++++ b/drivers/soc/rockchip/rockchip-pm-config.c
+@@ -0,0 +1,117 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Rockchip suspend configuration for BL31.
++ *
++ * Trimmed from the Rockchip BSP kernel (drivers/soc/rockchip/
++ * rockchip_pm_config.c), which mainline lacks. On the RK3568 the deep
++ * suspend states are run by the Rockchip TF-A (BL31) firmware, and the BSP
++ * tells it how deep to go and what may wake the system through the
++ * SIP_SUSPEND_MODE SMC call. Without this driver BL31 uses its built-in
++ * defaults.
++ *
++ * Forwards the board's rockchip,sleep-mode-config, rockchip,wakeup-config
++ * and rockchip,sleep-debug-en values at probe, and on every suspend attempt
++ * sends LINUX_PM_STATE (which state Linux is entering) followed by the mode
++ * and wakeup config again, in the same order as the BSP.
++ *
++ * Based on ROCKNIX's PX30S port of the same driver
++ * (projects/ROCKNIX/devices/RK3326/patches/linux/
++ * 031-px30s-suspend-wakeup-config.patch). The regulator lists,
++ * virtual-poweroff, IO retention, MCU and multi-state handling of the BSP
++ * are left out; the boards using this only set the three properties above.
++ */
++
++#include <linux/arm-smccc.h>
++#include <linux/module.h>
++#include <linux/of.h>
++#include <linux/platform_device.h>
++#include <linux/suspend.h>
++
++#define SIP_SUSPEND_MODE		0x82000003
++
++#define SUSPEND_MODE_CONFIG		0x01
++#define WKUP_SOURCE_CONFIG		0x02
++#define GPIO_POWER_CONFIG		0x04
++#define SUSPEND_DEBUG_ENABLE		0x05
++#define LINUX_PM_STATE			0x09
++
++#define PM_INVALID_GPIO			0xffff
++
++static u32 rk_pm_sleep_mode_config;
++static u32 rk_pm_wakeup_config;
++
++static unsigned long rockchip_pm_sip_config(u32 ctrl, u32 config1, u32 config2)
++{
++	struct arm_smccc_res res;
++
++	arm_smccc_smc(SIP_SUSPEND_MODE, ctrl, config1, config2, 0, 0, 0, 0,
++		      &res);
++	return res.a0;
++}
++
++static void rockchip_pm_send_config(void)
++{
++	if (rk_pm_sleep_mode_config)
++		rockchip_pm_sip_config(SUSPEND_MODE_CONFIG,
++				       rk_pm_sleep_mode_config, 0);
++	if (rk_pm_wakeup_config)
++		rockchip_pm_sip_config(WKUP_SOURCE_CONFIG,
++				       rk_pm_wakeup_config, 0);
++}
++
++/* Runs on every suspend attempt, like the BSP's pm_config_prepare() */
++static int rockchip_pm_config_prepare(struct device *dev)
++{
++	rockchip_pm_sip_config(LINUX_PM_STATE, mem_sleep_current, 0);
++	rockchip_pm_send_config();
++
++	return 0;
++}
++
++static const struct dev_pm_ops rockchip_pm_config_ops = {
++	.prepare = rockchip_pm_config_prepare,
++};
++
++static int rockchip_pm_config_probe(struct platform_device *pdev)
++{
++	struct device_node *node = pdev->dev.of_node;
++	u32 sleep_debug_en;
++
++	if (of_property_read_u32(node, "rockchip,sleep-mode-config",
++				 &rk_pm_sleep_mode_config))
++		dev_warn(&pdev->dev, "no rockchip,sleep-mode-config\n");
++	if (of_property_read_u32(node, "rockchip,wakeup-config",
++				 &rk_pm_wakeup_config))
++		dev_warn(&pdev->dev, "no rockchip,wakeup-config\n");
++
++	rockchip_pm_send_config();
++
++	/* no GPIO power control: terminate the list as the BSP does */
++	rockchip_pm_sip_config(GPIO_POWER_CONFIG, 0, PM_INVALID_GPIO);
++
++	if (!of_property_read_u32(node, "rockchip,sleep-debug-en",
++				  &sleep_debug_en))
++		rockchip_pm_sip_config(SUSPEND_DEBUG_ENABLE, sleep_debug_en, 0);
++
++	dev_info(&pdev->dev, "sleep mode config 0x%x, wakeup config 0x%x\n",
++		 rk_pm_sleep_mode_config, rk_pm_wakeup_config);
++
++	return 0;
++}
++
++static const struct of_device_id rockchip_pm_config_of_match[] = {
++	{ .compatible = "rockchip,pm-px30", },
++	{ .compatible = "rockchip,pm-rk3568", },
++	{ },
++};
++MODULE_DEVICE_TABLE(of, rockchip_pm_config_of_match);
++
++static struct platform_driver rockchip_pm_config_driver = {
++	.probe = rockchip_pm_config_probe,
++	.driver = {
++		.name = "rockchip-pm-config",
++		.of_match_table = rockchip_pm_config_of_match,
++		.pm = &rockchip_pm_config_ops,
++	},
++};
++builtin_platform_driver(rockchip_pm_config_driver);

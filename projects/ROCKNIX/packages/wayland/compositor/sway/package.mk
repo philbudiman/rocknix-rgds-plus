@@ -45,7 +45,10 @@ post_makeinstall_target() {
     cp ${PKG_DIR}/scripts/sway.sh     ${INSTALL}/usr/bin
     cp ${PKG_DIR}/scripts/sway-config ${INSTALL}/usr/lib/sway
   mkdir -p ${INSTALL}/usr/lib/autostart/common
-    cp ${PKG_DIR}/autostart/111-sway-init     ${INSTALL}/usr/lib/autostart/common
+    # BaseOS supplies its own two-panel config without frontend window rules.
+    if [ "${BASEOS}" != "yes" ]; then
+      cp ${PKG_DIR}/autostart/111-sway-init ${INSTALL}/usr/lib/autostart/common
+    fi
     cp ${PKG_DIR}/scripts/sway-touch.sh     ${INSTALL}/usr/bin
 
   chmod +x ${INSTALL}/usr/bin/sway*
@@ -66,5 +69,6 @@ post_makeinstall_target() {
 }
 
 post_install() {
-  enable_service sway-touch.service
+  # BaseOS maps touch to the lower panel in its compositor config.
+  [ "${BASEOS}" = "yes" ] || enable_service sway-touch.service
 }

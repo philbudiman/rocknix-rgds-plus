@@ -172,6 +172,18 @@
 		};
 	};
 
+	/*
+	 * Suspend mode and wakeup sources for the Rockchip BL31, copied from
+	 * the stock device tree. Read by the rockchip-pm-config driver.
+	 */
+	rockchip-suspend {
+		compatible = "rockchip,pm-rk3568";
+		rockchip,sleep-debug-en = <1>;
+		rockchip,sleep-mode-config = <0x5ec>;
+		rockchip,wakeup-config = <0x10>;
+		status = "okay";
+	};
+
 	backlight0: backlight0 {
 		compatible = "pwm-backlight";
 		enable-gpios = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
@@ -190,16 +202,14 @@
 	 * node was left at 2500000. "factory-internal-resistance-micro-ohms"
 	 * was set at 80 but based on context should likely be 80000.
 	 *
-	 * "constant-charge-current-max-microamp" is set at 10 AMPs
-	 * which is likely incorrect but I cannot validate; furthermore
-	 * the onboard charger of the rk817 cannot charge past 3.5A
-	 * anyway.
+	 * Charging stays at the stock BSP limit of 2 A. The RK817 driver
+	 * separately limits USB input current to 1.5 A.
 	 */
 	battery: battery {
 		compatible = "simple-battery";
 		charge-full-design-microamp-hours = <4247000>;
 		charge-term-current-microamp = <300000>;
-		constant-charge-current-max-microamp = <10000000>;
+		constant-charge-current-max-microamp = <2000000>;
 		constant-charge-voltage-max-microvolt = <4350000>;
 		factory-internal-resistance-micro-ohms = <80000>;
 		precharge-current-microamp = <180000>;
@@ -502,6 +512,12 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
+	/*
+	 * Pixel clock 62.411 MHz instead of the stock 62.8 MHz: with
+	 * htotal 1304 and vtotal 800 that is 59.826 Hz, the Nintendo DS
+	 * refresh rate, so vsync-locked DS emulation doesn't drop or repeat
+	 * a frame every few seconds. Both panels use the same timing.
+	 */
 	dsi0_panel: panel@0 {
 		compatible = "rocknix,generic-dsi";
 		reg = <0>;
@@ -514,7 +530,7 @@
 		panel_description =
 			"G size=87,66 delays=10,10,10,10,20 format=rgb888 lanes=2 flags=0xe03",
 
-			"M clock=62770 horizontal=1024,120,80,80 vertical=768,16,8,8 default=1",
+			"M clock=62411 horizontal=1024,120,80,80 vertical=768,16,8,8 default=1",
 
 			"I seq=3000",
 			"I seq=f749610200",
@@ -594,7 +610,7 @@
 		panel_description =
 			"G size=87,66 delays=10,10,10,10,20 format=rgb888 lanes=2 flags=0xe03",
 
-			"M clock=62770 horizontal=1024,120,80,80 vertical=768,16,8,8 default=1",
+			"M clock=62411 horizontal=1024,120,80,80 vertical=768,16,8,8 default=1",
 
 			"I seq=3000",
 			"I seq=f749610200",
@@ -685,8 +701,19 @@
 		clocks = <&cru I2S1_MCLKOUT_TX>;
 		interrupt-parent = <&gpio0>;
 		interrupts = <RK_PA3 IRQ_TYPE_LEVEL_LOW>;
+		/*
+		 * Sleep pin states and reset function as on the stock (BSP)
+		 * firmware; see the rk8xx-core sleep pin patch. Each state
+		 * repeats the default pins so switching states never releases
+		 * them.
+		 */
+		pinctrl-names = "default", "pmic-sleep",
+				"pmic-power-off", "pmic-reset";
 		pinctrl-0 = <&i2s1m0_mclk &pmic_int_l>;
-		pinctrl-names = "default";
+		pinctrl-1 = <&i2s1m0_mclk &pmic_int_l &soc_slppin_slp>;
+		pinctrl-2 = <&i2s1m0_mclk &pmic_int_l &soc_slppin_gpio>;
+		pinctrl-3 = <&i2s1m0_mclk &pmic_int_l &soc_slppin_gpio>;
+		pmic-reset-func = <0>;
 		#sound-dai-cells = <0>;
 		system-power-controller;
 		wakeup-source;
@@ -710,8 +737,9 @@
 				regulator-min-microvolt = <900000>;
 				regulator-name = "vdd_logic";
 				regulator-ramp-delay = <6001>;
+				/* off in suspend as on stock; needs rockchip-suspend */
 				regulator-state-mem {
-					regulator-on-in-suspend;
+					regulator-off-in-suspend;
 					regulator-suspend-microvolt = <900000>;
 				};
 			};
@@ -815,9 +843,10 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-min-microvolt = <3300000>;
 				regulator-name = "vcc3v3_pmu";
+				/* 3.0 V in suspend as on stock */
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <3300000>;
+					regulator-suspend-microvolt = <3000000>;
 				};
 			};
 
@@ -1082,6 +1111,17 @@
 		pmic_int_l: pmic-int-l {
 			rockchip,pins =
 				<0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		/* PMIC_SLEEP line, SoC side (stock soc_slppin_gpio/_slp) */
+		soc_slppin_gpio: soc-slppin-gpio {
+			rockchip,pins =
+				<0 RK_PA2 RK_FUNC_GPIO &pcfg_output_low>;
+		};
+
+		soc_slppin_slp: soc-slppin-slp {
+			rockchip,pins =
+				<0 RK_PA2 1 &pcfg_pull_none>;
 		};
 	};
 

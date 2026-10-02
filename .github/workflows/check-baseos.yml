@@ -1,0 +1,63 @@
+name: BaseOS preflight and publishing smoke test
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: baseos-preflight-${{ github.run_id }}
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PROJECT: ROCKNIX
+      DEVICE: RK3566
+      ARCH: aarch64
+      BASE_ONLY: "true"
+      BASEOS: "yes"
+      EMULATION_DEVICE: "no"
+      ENABLE_32BIT: "no"
+      DISABLE_COLORS: "yes"
+    steps:
+      - uses: actions/checkout@v6
+      - name: Off-device bring-up regression check
+        run: python3 rocknix/check-bringup.py .
+      - name: Unpack and verify kernel patch integration
+        run: |
+          ./scripts/get_env > .env
+          docker run --init --env-file .env --rm --user "$(id -u):$(id -g)" \
+            -v "$PWD:$PWD" -w "$PWD" ghcr.io/rocknix/rocknix-build:latest \
+            bash -c './scripts/unpack linux' > unpack.log 2>&1
+          src=$(find build.ROCKNIX-RK3566.aarch64/build -maxdepth 1 -type d -name 'linux-*' | head -1)
+          grep -q rk817_slppin_switch "$src/drivers/mfd/rk8xx-core.c"
+          test -f "$src/drivers/soc/rockchip/rockchip-pm-config.c"
+          grep -q SILERGY_STI8070A "$src/drivers/regulator/fan53555.c"
+          # Stock USB input limit must still be present in the actual kernel source.
+          test "$(grep -c 'RK817_USB_ILIM_SEL, 0x03' "$src/drivers/power/supply/rk817_charger.c")" -eq 2
+          find "$src" -name '*.rej' -print > rejects.txt
+          test ! -s rejects.txt
+      - name: Create dummy image and checksum
+        run: |
+          mkdir target
+          printf 'Publishing smoke test. DO NOT FLASH.\n' | gzip > target/SMOKE-TEST-DO-NOT-FLASH.img.gz
+          (cd target && sha256sum SMOKE-TEST-DO-NOT-FLASH.img.gz > SMOKE-TEST-DO-NOT-FLASH.img.gz.sha256)
+      - uses: actions/upload-artifact@v7
+        with:
+          name: SMOKE-TEST-DO-NOT-FLASH
+          path: target/SMOKE-TEST-DO-NOT-FLASH*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: baseos-kernel-preflight
+          path: |
+            unpack.log
+            rejects.txt
+  publish-smoke:
+    needs: check
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release-baseos.yml
+    with:
+      SMOKE_TEST: true

@@ -2,13 +2,13 @@
 # Copyright (C) 2026-present ROCKNIX (https://github.com/ROCKNIX)
 
 PKG_NAME="dsperate-sa"
-PKG_VERSION="2.0.1"
-PKG_SHA256="0a6b86e474ecf8a51a5c60c0a400ab0ce67ab1d5d8f26b9a5946e3bfa4ac1f9c"
+PKG_VERSION="3.0.0"
+PKG_SHA256="af61e879d1cd0cf004ef4b1e0e686f084390a5fc4cf31319951b2c4bab016115"
 PKG_LICENSE="GPL-3.0-or-later"
 PKG_SITE="https://github.com/beebono/DSperate"
 PKG_URL="${PKG_SITE}/releases/download/v${PKG_VERSION}/dsperate-v${PKG_VERSION}-linux-${TARGET_ARCH}.tar.gz"
 PKG_SOURCE_DIR="dsperate-v${PKG_VERSION}-linux-${TARGET_ARCH}"
-PKG_DEPENDS_TARGET="toolchain SDL2"
+PKG_DEPENDS_TARGET="toolchain SDL2 ${VULKAN}"
 PKG_LONGDESC="A Nintendo DS emulator reimplementing DraStic's JIT and NEON rendering with melonDS accuracy."
 PKG_TOOLCHAIN="manual"
 

@@ -12,6 +12,14 @@ on:
       OWNER_LC:
         required: true
         type: string
+      BASEOS:
+        description: "build RG DS Plus BaseOS without EmulationStation"
+        type: boolean
+        default: false
+      SUSPEND:
+        description: "include stock BL31 suspend configuration and sleep rails"
+        type: boolean
+        default: true
 
 jobs:
   build-aarch64-toolchain:
@@ -24,6 +32,9 @@ jobs:
       AUTOREMOVE_BLOCK: "gcc glibc libtool flex"
       PROJECT: ${{ inputs.PROJECT }}
       DEVICE: ${{ inputs.DEVICE }}
+      BASEOS: ${{ inputs.BASEOS && 'yes' || 'no' }}
+      BASE_ONLY: ${{ inputs.BASEOS && 'true' || 'false' }}
+      DS_ONLY: "false"
       ARCH: aarch64
       CACHE_KEY: ccache-aarch64-${{ inputs.DEVICE }}-toolchain-${{ github.sha }}
       DISABLE_COLORS: yes
@@ -40,6 +51,10 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
+      - name: Configure diagnostic suspend variant
+        if: inputs.BASEOS && !inputs.SUSPEND
+        run: python3 rocknix/disable-suspend.py .
 
       - name: Retrieve ccache
         run: |

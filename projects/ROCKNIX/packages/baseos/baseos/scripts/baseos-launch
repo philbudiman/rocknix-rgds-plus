@@ -1,0 +1,90 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
+# BaseOS launcher, milestone 1 (hardware bring-up on ROCKNIX).
+#
+# There is no menu yet. On each start this:
+#   1. writes a boot report to the ROMs card (roms/baseos-logs/boot-NNN/),
+#      so results can be read on a computer without SSH;
+#   2. runs DSperate with the ROM named in roms/baseos/autostart.txt, or the
+#      first .nds file in roms/nds, and logs it;
+#   3. updates the report when DSperate exits, then waits.
+# The MinUI frontend replaces steps 2 and 3 in a later milestone.
+
+. /etc/profile
+
+ROMS=/storage/roms
+LOGROOT=${ROMS}/baseos-logs
+KEEP=10
+
+mkdir -p "${LOGROOT}"
+last=$(ls -1 "${LOGROOT}" 2>/dev/null | sed -n 's/^boot-\([0-9]*\)$/\1/p' | sort -n | tail -1)
+n=$(( 10#${last:-0} + 1 ))
+LOG=$(printf '%s/boot-%03d' "${LOGROOT}" "${n}")
+mkdir -p "${LOG}"
+
+# keep the newest ${KEEP} reports
+ls -1d "${LOGROOT}"/boot-* 2>/dev/null | sort | head -n -${KEEP} | xargs -r rm -rf
+
+report() {
+  {
+    echo "date: $(date -Is)"
+    echo "kernel: $(uname -a)"
+    echo "uptime: $(cat /proc/uptime)"
+  } > "${LOG}/summary.txt"
+  dmesg > "${LOG}/dmesg.txt" 2>&1
+  journalctl -b --no-pager > "${LOG}/journal.txt" 2>&1
+  cp -f /var/log/sway.log "${LOG}/sway.log" 2>/dev/null
+  {
+    echo "== modetest -c"; modetest -c 2>&1
+    echo "== backlight"; grep -H . /sys/class/backlight/*/brightness /sys/class/backlight/*/max_brightness 2>&1
+    echo "== power_supply"; grep -H . /sys/class/power_supply/*/{status,capacity,voltage_now,current_now,voltage_avg,current_avg,charge_now,constant_charge_current_max,input_current_limit} 2>&1
+    echo "== mem_sleep"; cat /sys/power/mem_sleep 2>&1
+    echo "== suspend stats"; grep -H . /sys/power/suspend_stats/* 2>&1
+    echo "== pm config"; dmesg | grep -iE 'rockchip-pm-config|rk8|rk817' 2>&1
+    echo "== GPU modules"; lsmod | grep -E "panfrost|mali"
+    echo "== Vulkan devices"; timeout 15 vulkaninfo --summary 2>&1
+    echo "== vulkan"; ls /usr/share/vulkan/icd.d 2>&1
+  } > "${LOG}/system.txt" 2>&1
+  sync
+}
+
+# Sway's service is Type=simple: starting its process does not mean it is ready.
+# Quirks have now populated the profile, including DEVICE_HAS_DUAL_SCREEN.
+ready=false
+for attempt in $(seq 1 30); do
+  if swaymsg -t get_outputs 2>/dev/null | jq -e '
+    any(.[]; .name == "DSI-1" and .active) and
+    any(.[]; .name == "DSI-2" and .active)' >/dev/null; then
+    ready=true
+    break
+  fi
+  sleep 1
+done
+report
+if [ "${ready}" != true ]; then
+  echo "display not ready after 30s; see sway.log and journal.txt" >> "${LOG}/launch.txt"
+  exec sleep infinity
+fi
+
+rom=""
+if [ -f "${ROMS}/baseos/autostart.txt" ]; then
+  rom=$(head -n 1 "${ROMS}/baseos/autostart.txt" | tr -d '\r')
+  case "${rom}" in /*) ;; ?*) rom="${ROMS}/${rom}" ;; esac
+fi
+if [ -z "${rom}" ] || [ ! -f "${rom}" ]; then
+  rom=$(find "${ROMS}/nds" -maxdepth 1 -type f \( -iname '*.nds' -o -iname '*.zip' \) 2>/dev/null | sort | head -n 1)
+fi
+
+if [ -n "${rom}" ]; then
+  echo "rom: ${rom}" >> "${LOG}/launch.txt"
+  start=$(date +%s)
+  /usr/bin/start_dsperate.sh "${rom}" nds > "${LOG}/dsperate.log" 2>&1
+  echo "exit: $? after $(( $(date +%s) - start ))s" >> "${LOG}/launch.txt"
+else
+  echo "no ROM: put a .nds in roms/nds or a path in roms/baseos/autostart.txt" >> "${LOG}/launch.txt"
+fi
+
+report
+# Nothing else to run yet: stay up so the report stays readable and
+# the device can be reached over SSH.
+exec sleep infinity

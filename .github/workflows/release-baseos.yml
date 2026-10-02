@@ -1,0 +1,30 @@
+name: Publish BaseOS
+on:
+  workflow_call:
+    inputs:
+      SMOKE_TEST:
+        type: boolean
+        default: false
+      SUSPEND:
+        type: boolean
+        default: true
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check publishing tools
+        run: gh --version && sha256sum --version
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: ${{ inputs.SMOKE_TEST && 'SMOKE-TEST-DO-NOT-FLASH' || 'ROCKNIX-base-image-RK3566-*' }}
+          path: target
+          merge-multiple: true
+      - name: Publish Specific image and checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SMOKE_TEST: ${{ inputs.SMOKE_TEST }}
+          SUSPEND: ${{ inputs.SUSPEND }}
+        run: bash rocknix/publish-baseos.sh

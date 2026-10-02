@@ -18,6 +18,15 @@ fi
 . config/options ""
 . projects/${PROJECT}/devices/${DEVICE}/options
 
+if [ "${BASEOS}" = "yes" ]; then
+  [ "${PROJECT}" = "ROCKNIX" ] && [ "${DEVICE}" = "RK3566" ] &&
+    [ "${BASE_ONLY}" = "true" ] && [ "${DS_ONLY}" != "true" ] || {
+      echo "BaseOS requires ROCKNIX RK3566, BASE_ONLY=true and DS_ONLY=false." >&2
+      exit 1
+    }
+  export ENABLE_32BIT=no EMULATION_DEVICE=no
+fi
+
 if [ "${DS_ONLY}" = "true" ]; then
   if [ "${PROJECT}" != "ROCKNIX" ] || [ "${DEVICE}" != "RK3566" ]; then
     echo "DS_ONLY is supported only for ROCKNIX RK3566." >&2

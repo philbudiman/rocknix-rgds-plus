@@ -76,6 +76,13 @@ if [ "${BASE_ONLY}" != "true" ] && { [ "${EMULATION_DEVICE}" = "yes" ] || { [ "$
   PKG_DEPENDS_TARGET+=" emulators gamesupport"
 fi
 
+# BaseOS keeps the existing BASE_ONLY package selection.
+if [ "${BASEOS}" = "yes" ]; then
+  [ "${BASE_ONLY}" = "true" ] || die "BASEOS=yes needs BASE_ONLY=true"
+  [ "${DS_ONLY}" != "true" ] || die "BASEOS and DS_ONLY are separate profiles"
+  PKG_DEPENDS_TARGET+=" baseos"
+fi
+
 # Add support for containers
 if [ "${DS_ONLY}" != "true" ] || [ "${DEVICE}" != "RK3566" ]; then
   [ "${CONTAINER_SUPPORT}" = "yes" ] && PKG_DEPENDS_TARGET+=" ${PKG_TOOLS} docker"

@@ -28,10 +28,18 @@ on:
         type: boolean
         required: false
         default: false
+      BASEOS:
+        description: "build RG DS Plus BaseOS without EmulationStation"
+        type: boolean
+        default: false
+      SUSPEND:
+        description: "include stock BL31 suspend configuration and sleep rails"
+        type: boolean
+        default: true
 
 jobs:
   build-arm:
-    if: ${{ !inputs.DS_ONLY }}
+    if: ${{ !inputs.DS_ONLY && !inputs.BASEOS }}
     uses: ./.github/workflows/build-arm.yml
     secrets: inherit
     with:
@@ -46,9 +54,11 @@ jobs:
       PROJECT: ${{ inputs.PROJECT }}
       DEVICE: ${{ inputs.DEVICE }}
       OWNER_LC: ${{ inputs.OWNER_LC }}
+      BASEOS: ${{ inputs.BASEOS }}
+      SUSPEND: ${{ inputs.SUSPEND }}
 
   build-aarch64-rust:
-    if: ${{ !inputs.DS_ONLY }}
+    if: ${{ !inputs.DS_ONLY && !inputs.BASEOS }}
     needs: build-aarch64-toolchain
     uses: ./.github/workflows/build-aarch64-rust.yml
     secrets: inherit
@@ -65,9 +75,11 @@ jobs:
       PROJECT: ${{ inputs.PROJECT }}
       DEVICE: ${{ inputs.DEVICE }}
       OWNER_LC: ${{ inputs.OWNER_LC }}
+      BASEOS: ${{ inputs.BASEOS }}
+      SUSPEND: ${{ inputs.SUSPEND }}
 
   build-aarch64-mame-lr:
-    if: ${{ !inputs.DS_ONLY }}
+    if: ${{ !inputs.DS_ONLY && !inputs.BASEOS }}
     needs: build-aarch64-toolchain
     uses: ./.github/workflows/build-aarch64-mame-lr.yml
     secrets: inherit
@@ -77,7 +89,7 @@ jobs:
       OWNER_LC: ${{ inputs.OWNER_LC }}
 
   build-aarch64-qt6:
-    if: ${{ !inputs.DS_ONLY }}
+    if: ${{ !inputs.DS_ONLY && !inputs.BASEOS }}
     needs: build-aarch64
     uses: ./.github/workflows/build-aarch64-qt6.yml
     secrets: inherit
@@ -91,7 +103,7 @@ jobs:
       - build-aarch64
       - build-aarch64-mame-lr
       - build-aarch64-qt6
-    if: ${{ always() && !cancelled() && !inputs.DS_ONLY && !contains(needs.*.result, 'failure')  }}
+    if: ${{ always() && !cancelled() && !inputs.DS_ONLY && !inputs.BASEOS && !contains(needs.*.result, 'failure')  }}
     uses: ./.github/workflows/build-aarch64-emu-libretro.yml
     secrets: inherit
     with:
@@ -104,7 +116,7 @@ jobs:
       - build-aarch64
       - build-aarch64-qt6
       - build-aarch64-rust
-    if: ${{ always() && !cancelled() && !contains(needs.*.result, 'failure')  }}
+    if: ${{ always() && !cancelled() && !inputs.BASEOS && !contains(needs.*.result, 'failure')  }}
     uses: ./.github/workflows/build-aarch64-emu-standalone.yml
     secrets: inherit
     with:
@@ -118,7 +130,7 @@ jobs:
       - build-aarch64-emu-libretro
       - build-aarch64-emu-standalone
       - build-arm
-    if: ${{ always() && !cancelled() && !contains(needs.*.result, 'failure')  }}
+    if: ${{ always() && !cancelled() && !inputs.BASEOS && !contains(needs.*.result, 'failure')  }}
     uses: ./.github/workflows/build-aarch64-image.yml
     secrets: inherit
     with:
@@ -132,7 +144,7 @@ jobs:
   purge-artifact:
     name: Artifacts cleanup
     needs: build-aarch64-image
-    if: ${{ always() && !cancelled() && !contains(needs.*.result, 'failure')  }}
+    if: ${{ always() && !cancelled() && !inputs.BASEOS && !contains(needs.*.result, 'failure')  }}
     runs-on: ubuntu-24.04
     steps:
       - uses: geekyeggo/delete-artifact@v6

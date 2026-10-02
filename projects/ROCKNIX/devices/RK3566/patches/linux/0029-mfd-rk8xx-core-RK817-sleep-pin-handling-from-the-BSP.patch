@@ -1,0 +1,289 @@
+From 314b6206985279d6b8d1eb0b5fd02874042d5f88 Mon Sep 17 00:00:00 2001
+From: Phillip Budiman <phillipbudiman@gmail.com>
+Date: Wed, 30 Sep 2026 09:49:06 -0700
+Subject: [PATCH] mfd: rk8xx-core: RK817 sleep pin handling from the Rockchip
+ BSP
+
+Ported from the Rockchip BSP kernel (drivers/mfd/rk808.c,
+rk817_pinctrl_init() and the RK817 suspend, resume and shutdown paths),
+which the Anbernic RG DS Plus stock firmware runs. Mainline switches the
+RK817 sleep pin function but never sets its polarity or the SoC side of
+the PMIC_SLEEP line, and resets the board by resetting the PMIC.
+
+Boards opt in with "pmic-sleep", "pmic-power-off" and "pmic-reset" pinctrl
+states for the SoC side of the sleep line (and optionally the BSP's
+pmic-reset-func property). For them, like the BSP:
+
+- probe: set the reset function from pmic-reset-func, then sleep pin
+  function NULL, polarity low, SoC pin to the reset state, function RESET;
+- suspend: NULL, polarity high, SoC pin to PMIC_SLEEP, function SLEEP;
+- resume: back to the probe state;
+- power off: mask the RTC interrupt, NULL, polarity high, SoC pin to the
+  power-off state, function POWER DOWN. Restart leaves the pin alone;
+- restart: no PMIC reset handler. The SoC resets through PSCI and the PMIC
+  follows through the sleep pin. For loader/recovery/etc. reboots the
+  PMIC resets its RST registers only, so the reboot mode survives.
+
+Boards without the pinctrl states behave exactly as before.
+
+The BSP's restore of POWER_EN from the POWER_EN_SAVE registers on reboot
+is not ported.
+---
+ drivers/mfd/rk8xx-core.c  | 165 ++++++++++++++++++++++++++++++++++++++
+ include/linux/mfd/rk808.h |  11 +++
+ 2 files changed, 176 insertions(+)
+
+diff --git a/drivers/mfd/rk8xx-core.c b/drivers/mfd/rk8xx-core.c
+index 3dcf6abfd..75a630593 100644
+--- a/drivers/mfd/rk8xx-core.c
++++ b/drivers/mfd/rk8xx-core.c
+@@ -11,10 +11,12 @@
+  */
+ 
+ #include <linux/bitfield.h>
++#include <linux/delay.h>
+ #include <linux/interrupt.h>
+ #include <linux/mfd/rk808.h>
+ #include <linux/mfd/core.h>
+ #include <linux/module.h>
++#include <linux/pinctrl/consumer.h>
+ #include <linux/property.h>
+ #include <linux/regmap.h>
+ #include <linux/reboot.h>
+@@ -733,6 +735,129 @@ static int rk808_restart(struct sys_off_data *data)
+ 	return NOTIFY_DONE;
+ }
+ 
++/*
++ * RK809/RK817 sleep pin handling, ported from the Rockchip BSP kernel
++ * (drivers/mfd/rk808.c, rk817_pinctrl_init() and the suspend, resume and
++ * shutdown paths), which the Anbernic RG DS Plus stock firmware uses.
++ *
++ * Boards opt in by giving the PMIC node "pmic-sleep", "pmic-power-off" and
++ * "pmic-reset" pinctrl states for the SoC side of the PMIC_SLEEP line.
++ * Before the PMIC-side function of the sleep pin is changed, the pin
++ * function is cleared, the polarity is set and the SoC pin is switched, in
++ * the same order as the BSP. Boards without these states keep the
++ * mainline behaviour.
++ */
++static int rk817_slppin_switch(struct rk808 *rk808, unsigned int fun,
++			       unsigned int pol, struct pinctrl_state *state)
++{
++	unsigned int value;
++	int ret;
++
++	ret = regmap_update_bits(rk808->regmap, RK817_SYS_CFG(3),
++				 RK817_SLPPIN_FUNC_MSK, SLPPIN_NULL_FUN);
++	if (ret)
++		return ret;
++
++	ret = regmap_update_bits(rk808->regmap, RK817_SYS_CFG(3),
++				 RK817_SLPPOL_MSK, pol);
++	if (ret)
++		return ret;
++
++	/* the PMIC needs SCL clocks to latch the register writes */
++	regmap_read(rk808->regmap, RK817_SYS_STS, &value);
++	mdelay(2);
++
++	if (state) {
++		ret = pinctrl_select_state(rk808->slp_pinctrl, state);
++		if (ret)
++			dev_warn(rk808->dev, "failed to select sleep pin state: %d\n", ret);
++	}
++
++	return regmap_update_bits(rk808->regmap, RK817_SYS_CFG(3),
++				  RK817_SLPPIN_FUNC_MSK, fun);
++}
++
++static int rk817_reboot_notify(struct notifier_block *nb, unsigned long action,
++			       void *cmd)
++{
++	static const char * const reg_only_cmds[] = {
++		"loader", "bootloader", "fastboot", "recovery",
++		"ums", "panic", "watchdog", "charge",
++	};
++	struct rk808 *rk808 = container_of(nb, struct rk808, reboot_nb);
++	int i;
++
++	if (action != SYS_RESTART || !cmd)
++		return NOTIFY_OK;
++
++	/*
++	 * A full PMIC reset also resets the SoC, which would lose the reboot
++	 * mode. For these commands only the RST registers are reset, as the
++	 * BSP does.
++	 */
++	for (i = 0; i < ARRAY_SIZE(reg_only_cmds); i++) {
++		if (!strcmp(cmd, reg_only_cmds[i])) {
++			regmap_update_bits(rk808->regmap, RK817_SYS_CFG(3),
++					   RK817_RST_FUNC_MSK, RK817_RST_FUNC_REG);
++			break;
++		}
++	}
++
++	return NOTIFY_OK;
++}
++
++static int rk817_slppin_init(struct rk808 *rk808)
++{
++	struct device *dev = rk808->dev;
++	u32 func;
++	int ret;
++
++	if (!device_property_read_u32(dev, "pmic-reset-func", &func)) {
++		if (func >= RK817_RST_FUNC_CNT)
++			return dev_err_probe(dev, -EINVAL,
++					     "invalid pmic-reset-func %u\n", func);
++
++		ret = regmap_update_bits(rk808->regmap, RK817_SYS_CFG(3),
++					 RK817_SLPPIN_FUNC_MSK | RK817_RST_FUNC_MSK,
++					 SLPPIN_NULL_FUN |
++					 (func << RK817_RST_FUNC_SFT));
++		if (ret)
++			return dev_err_probe(dev, ret, "failed to set reset function\n");
++
++		rk808->reboot_nb.notifier_call = rk817_reboot_notify;
++		ret = devm_register_reboot_notifier(dev, &rk808->reboot_nb);
++		if (ret)
++			dev_warn(dev, "failed to register reboot notifier: %d\n", ret);
++	}
++
++	rk808->slp_pinctrl = devm_pinctrl_get(dev);
++	if (IS_ERR(rk808->slp_pinctrl)) {
++		rk808->slp_pinctrl = NULL;
++		return 0;
++	}
++
++	rk808->slp_reset = pinctrl_lookup_state(rk808->slp_pinctrl, "pmic-reset");
++	rk808->slp_sleep = pinctrl_lookup_state(rk808->slp_pinctrl, "pmic-sleep");
++	rk808->slp_power_off = pinctrl_lookup_state(rk808->slp_pinctrl,
++						    "pmic-power-off");
++	if (IS_ERR(rk808->slp_reset))
++		rk808->slp_reset = NULL;
++	if (IS_ERR(rk808->slp_sleep))
++		rk808->slp_sleep = NULL;
++	if (IS_ERR(rk808->slp_power_off))
++		rk808->slp_power_off = NULL;
++
++	if (!rk808->slp_reset)
++		return 0;
++
++	ret = rk817_slppin_switch(rk808, SLPPIN_RST_FUN, RK817_SLPPOL_L,
++				  rk808->slp_reset);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to set up sleep pin\n");
++
++	return 0;
++}
++
+ void rk8xx_shutdown(struct device *dev)
+ {
+ 	struct rk808 *rk808 = dev_get_drvdata(dev);
+@@ -747,6 +872,23 @@ void rk8xx_shutdown(struct device *dev)
+ 		break;
+ 	case RK809_ID:
+ 	case RK817_ID:
++		if (rk808->slp_power_off) {
++			/*
++			 * On restart the sleep pin keeps its reset function so
++			 * the PMIC follows the SoC reset, as on the BSP.
++			 */
++			if (system_state != SYSTEM_POWER_OFF)
++				return;
++			/* close the RTC interrupt so an alarm can't wake it */
++			regmap_update_bits(rk808->regmap, RK817_INT_STS_MSK_REG0,
++					   (0x3 << 5), (0x3 << 5));
++			regmap_update_bits(rk808->regmap, RK817_RTC_INT_REG,
++					   (0x3 << 2), (0x0 << 2));
++			ret = rk817_slppin_switch(rk808, SLPPIN_DN_FUN,
++						  RK817_SLPPOL_H,
++						  rk808->slp_power_off);
++			break;
++		}
+ 		ret = regmap_update_bits(rk808->regmap,
+ 					 RK817_SYS_CFG(3),
+ 					 RK817_SLPPIN_FUNC_MSK,
+@@ -867,6 +1009,12 @@ int rk8xx_probe(struct device *dev, int variant, unsigned int irq, struct regmap
+ 					     pre_init_reg[i].addr);
+ 	}
+ 
++	if (rk808->variant == RK809_ID || rk808->variant == RK817_ID) {
++		ret = rk817_slppin_init(rk808);
++		if (ret)
++			return ret;
++	}
++
+ 	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO, cells, nr_cells, NULL, 0,
+ 			      regmap_irq_get_domain(rk808->irq_data));
+ 	if (ret)
+@@ -884,6 +1032,13 @@ int rk8xx_probe(struct device *dev, int variant, unsigned int irq, struct regmap
+ 		switch (rk808->variant) {
+ 		case RK809_ID:
+ 		case RK817_ID:
++			/*
++			 * With the BSP sleep pin setup the SoC resets through
++			 * PSCI and the PMIC follows through its sleep pin, as
++			 * on the stock firmware. Don't reset the PMIC directly.
++			 */
++			if (rk808->slp_reset)
++				break;
+ 			ret = devm_register_sys_off_handler(dev,
+ 							    SYS_OFF_MODE_RESTART, SYS_OFF_PRIO_HIGH,
+ 							    &rk808_restart, rk808);
+@@ -920,6 +1075,11 @@ int rk8xx_suspend(struct device *dev)
+ 		break;
+ 	case RK809_ID:
+ 	case RK817_ID:
++		if (rk808->slp_sleep) {
++			ret = rk817_slppin_switch(rk808, SLPPIN_SLP_FUN,
++						  RK817_SLPPOL_H, rk808->slp_sleep);
++			break;
++		}
+ 		ret = regmap_update_bits(rk808->regmap,
+ 					 RK817_SYS_CFG(3),
+ 					 RK817_SLPPIN_FUNC_MSK,
+@@ -941,6 +1101,11 @@ int rk8xx_resume(struct device *dev)
+ 	switch (rk808->variant) {
+ 	case RK809_ID:
+ 	case RK817_ID:
++		if (rk808->slp_reset) {
++			ret = rk817_slppin_switch(rk808, SLPPIN_RST_FUN,
++						  RK817_SLPPOL_L, rk808->slp_reset);
++			break;
++		}
+ 		ret = regmap_update_bits(rk808->regmap,
+ 					 RK817_SYS_CFG(3),
+ 					 RK817_SLPPIN_FUNC_MSK,
+diff --git a/include/linux/mfd/rk808.h b/include/linux/mfd/rk808.h
+index 7ffc904c8..1d86ca128 100644
+--- a/include/linux/mfd/rk808.h
++++ b/include/linux/mfd/rk808.h
+@@ -15,9 +15,13 @@
+ #ifndef __LINUX_REGULATOR_RK808_H
+ #define __LINUX_REGULATOR_RK808_H
+ 
++#include <linux/notifier.h>
+ #include <linux/regulator/machine.h>
+ #include <linux/regmap.h>
+ 
++struct pinctrl;
++struct pinctrl_state;
++
+ /*
+  * rk808 Global Register Map.
+  */
+@@ -1466,6 +1470,13 @@ struct rk808 {
+ 	long				variant;
+ 	const struct regmap_config	*regmap_cfg;
+ 	const struct regmap_irq_chip	*regmap_irq_chip;
++
++	/* RK809/RK817 sleep pin handling as done by the Rockchip BSP */
++	struct pinctrl			*slp_pinctrl;
++	struct pinctrl_state		*slp_reset;
++	struct pinctrl_state		*slp_sleep;
++	struct pinctrl_state		*slp_power_off;
++	struct notifier_block		reboot_nb;
+ };
+ 
+ void rk8xx_shutdown(struct device *dev);
