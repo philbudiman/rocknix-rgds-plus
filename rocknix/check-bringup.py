@@ -75,6 +75,22 @@ with tempfile.TemporaryDirectory() as temporary:
     assert bash('ROMS=$1; ' + selection + 'printf "%s" "$rom"', roms) == str(game)
 print('PASS: ROM selection skips macOS metadata and preserves explicit paths with spaces')
 
+# DS Plus hardware report: DSI-1 is lower, DSI-2 upper; native dmabuf
+# fullscreen targets use registry indices independently of Sway window rules.
+config = (b / 'config/sway.config').read_text()
+for expected in ('workspace 1 output DSI-2', 'workspace 2 output DSI-1',
+                 'map_to_output DSI-1', 'output DSI-2 mode 1024x768 position 0 0',
+                 'output DSI-1 mode 1024x768 position 1024 0'):
+    assert expected in config, expected
+command = next(line for line in launcher.splitlines() if '/usr/bin/start_dsperate.sh' in line)
+with tempfile.TemporaryDirectory() as temporary:
+    bash('''LOG=$1; rom='game with spaces.nds'
+start_dsperate() { printf '%s\n' "$DS_DUAL_SCREENS" "$DS_FPS" "$DS_FRAME_STATS" "$1" "$2"; }
+''' + command.replace('/usr/bin/start_dsperate.sh', 'start_dsperate'), temporary)
+    assert (Path(temporary) / 'dsperate.log').read_text().splitlines() == [
+        'upper=1,lower=0', '1', '1', 'game with spaces.nds', 'nds']
+print('PASS: physical panel/touch mapping and DSperate timing diagnostics')
+
 # Reports must survive boot-008/009 rather than treating the suffix as octal.
 count = launcher[launcher.index('n=$(('):launcher.index('\nLOG=')]
 assert bash('last=008; ' + count + '; echo "$n"').strip() == '9'

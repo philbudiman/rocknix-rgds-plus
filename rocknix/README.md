@@ -43,7 +43,7 @@ fork. No upstream nightly or official release credentials are needed.
 - BaseOS excludes EmulationStation, other emulators and 32-bit packages;
   includes Sway, audio, SDL2, Vulkan and DSperate 3.0.0 with GPU 3D enabled.
 - Panfrost only: no libmali or its blacklist; early module loading, dedicated
-  two-panel Sway config, Goodix touch mapped to DSI-2, no frontend config writer
+  two-panel Sway config, Goodix touch mapped to lower DSI-1, no frontend config writer
   or generic touch remapping. Launcher waits for autostart and both active panels.
 - Specific boot configuration selects
   `/device_trees/rk3568-anbernic-rg-ds-plus.dtb` using the fork's existing FDT
@@ -111,10 +111,36 @@ Speaker amplifier initialization errors also appear in the report. Gameplay,
 GPU 3D, audible sound, touch and suspend remain unconfirmed; retest the actual
 ROM first before changing audio or GPU behavior.
 
+## BaseOS 18 follow-up hardware reports
+
+Boot 002 selected the actual ROM. The user reports smooth gameplay, working
+controls, audible sound and working volume buttons; menu/back buttons remain
+untested. Physical screens were reversed, preventing touch confirmation.
+DSperate v3.0.0 identifies DSI-1 as lower; the dedicated Sway configuration had
+assumed it was upper. The correction assigns upper to DSI-2, lower/touch to DSI-1
+and explicitly sets `DS_DUAL_SCREENS=upper=1,lower=0` for DSperate's native dmabuf
+fullscreen targets, which use output indices independently of window rules.
+This correction still requires hardware retesting.
+
+The next image enables DSperate's existing `DS_FPS=1` and `DS_FRAME_STATS=1`:
+`dsperate.log` receives FPS, percent of nominal DS speed, emulation/presentation/
+wait/pacing timings approximately every 60 emulated frames. Frame statistics are
+printed on emulator exit. Existing reports contain no measured performance
+numbers; smoothness is a user observation, not a quantified full-speed result.
+The built-in FPS overlay is mapped to modifier+Y (modifier is SDL `guide`);
+physical menu/back mapping still needs confirmation.
+
+Boot 003's journal records short Power-key events, deep suspend entry and resume.
+This confirms sleep occurred in that session, not a clean shutdown; it does not
+resolve repeated-button/cold-start behavior. Initial speaker errors remain logged,
+but audible playback and volume control are now confirmed for the tested session.
+
 ## Remaining bring-up work
 
-- [ ] Verify gameplay, GPU 3D, lower-screen touch and audible sound using the
-  actual ROM; investigate the speaker initialization errors if sound fails.
+- [x] User confirmed gameplay, audible sound and volume buttons with the actual ROM.
+- [ ] Retest corrected panel assignment and lower touch; measure FPS/speed/timings,
+  confirm GPU 3D and physical menu/back mappings. Investigate speaker startup
+  errors if playback or resume audio becomes unreliable.
 - [ ] Diagnose power-button behavior reported on BaseOS 18: after card removal
   and reinsertion, the first hold appears to do nothing and the second starts
   the device. While running, holding Power turns screens/LED off, but release

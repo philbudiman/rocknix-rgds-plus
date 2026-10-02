@@ -78,7 +78,7 @@ fi
 if [ -n "${rom}" ]; then
   echo "rom: ${rom}" >> "${LOG}/launch.txt"
   start=$(date +%s)
-  /usr/bin/start_dsperate.sh "${rom}" nds > "${LOG}/dsperate.log" 2>&1
+  DS_DUAL_SCREENS=upper=1,lower=0 DS_FPS=1 DS_FRAME_STATS=1 /usr/bin/start_dsperate.sh "${rom}" nds > "${LOG}/dsperate.log" 2>&1
   echo "exit: $? after $(( $(date +%s) - start ))s" >> "${LOG}/launch.txt"
 else
   echo "no ROM: put a .nds in roms/nds or a path in roms/baseos/autostart.txt" >> "${LOG}/launch.txt"
