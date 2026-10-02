@@ -1,5 +1,8 @@
 # BaseOS build speed comparison
 
+See [the cache setup document](../docs/baseos-toolchain-cache.md) for retention,
+invalidation rules, operating procedures, and measured benchmark results.
+
 The built-toolchain cache applies only to RK3566 BaseOS. It reuses the existing
 compressed archive on an exact input match; other profiles keep their existing
 build path. Compiler versions/binaries, installed container package versions,
