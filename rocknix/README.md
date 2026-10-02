@@ -61,6 +61,18 @@ variant and package selection. Run `actionlint -shellcheck='' .github/workflows/
 for workflow schemas/expressions; Bash syntax and publisher shellcheck are also
 checked. These checks do not prove rendering, Vulkan, touch, sound or suspend.
 
+Validation run [36954725526](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/36954725526)
+passed the local bring-up checks and actual kernel integration with no rejected
+hunks. It confirmed both existing USB-input-limit assignments and successfully
+published draft release `baseos-smoke-36954725526` with only
+`SMOKE-TEST-DO-NOT-FLASH.img.gz` and its checksum.
+
+Full BaseOS build [36954906825](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/36954906825)
+started from port commit `80096ae859`, with suspend changes enabled. The build
+container completed, and the toolchain job restored the persistent compiler
+cache and started compilation. Final image inspection and hardware tests remain
+pending.
+
 Source build #6 (`36952934140`) was still compiling during initial port inspection;
 its stage-0 kernel check passed. It was left running.
 
