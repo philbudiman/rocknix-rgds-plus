@@ -120,7 +120,10 @@ DSperate v3.0.0 identifies DSI-1 as lower; the dedicated Sway configuration had
 assumed it was upper. The correction assigns upper to DSI-2, lower/touch to DSI-1
 and explicitly sets `DS_DUAL_SCREENS=upper=1,lower=0` for DSperate's native dmabuf
 fullscreen targets, which use output indices independently of window rules.
-This correction still requires hardware retesting.
+This correction still requires hardware retesting. Corrective build
+[37038104273](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37038104273)
+started from `f0360355cb` with suspend enabled; scheduled follow-up is active
+until its downloaded image is verified and handed over.
 
 The next image enables DSperate's existing `DS_FPS=1` and `DS_FRAME_STATS=1`:
 `dsperate.log` receives FPS, percent of nominal DS speed, emulation/presentation/
