@@ -211,6 +211,9 @@ shutdown, wake and audio/touch recovery need hardware confirmation. This userspa
 change does not prove the reported first-press cold-start issue is fixed, and
 cannot remove a PMIC's forced-off behavior on an excessively long hold.
 `system.txt` now includes the effective logind configuration for diagnosis.
+Combined GPU/microphone/power build
+[37055711060](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37055711060)
+started at `2693875fbd`; verify its final image before hardware retesting.
 
 ## Remaining bring-up work
 
@@ -259,8 +262,10 @@ cannot remove a PMIC's forced-off behavior on an excessively long hold.
    `sway.log`, `system.txt`, `dmesg.txt` and `journal.txt`. Confirm both 62411 kHz
    modes, active panels, Vulkan device detection and a 2,000,000 µA charge limit.
 5. Then test several shutdown/power-on and reboot cycles; boot stock afterward
-   and check it powers on without disconnecting the battery. Then test lid/power
-   sleep and wake, audio/touch recovery and measured sleep drain versus stock.
+   and check it powers on without disconnecting the battery. Test that short
+   Power presses stay awake, a five-second hold requests clean shutdown, lid
+   close sleeps and lid open wakes. Check audio/touch recovery and measured
+   sleep drain versus stock.
    Compare charge before/after sleep; do not keep the CPU awake to sample it.
 
 Wait for hardware results before MinUI and `rgds-hwkeys`. Later hotkeys:
