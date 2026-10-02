@@ -145,6 +145,28 @@ This confirms sleep occurred in that session, not a clean shutdown; it does not
 resolve repeated-button/cold-start behavior. Initial speaker errors remain logged,
 but audible playback and volume control are now confirmed for the tested session.
 
+## BaseOS 19 hardware report (boot 004)
+
+The user confirmed correct physical top/bottom screen order and working touch.
+The actual New Super Mario Bros. ROM launched. Across 344 approximately one-second
+reporting windows (about 345.4 seconds), median FPS was 59.8; aggregate throughput
+was approximately 59.75 FPS. Most windows reported 100% nominal DS speed; four
+reported below 99%, with a minimum of 52.5 FPS / 88%. Mean reported emulation work
+was 5.17 ms/frame and presentation work 0.32 ms/frame. At 59.8 FPS the frame period
+is approximately 16.72 ms. These are rounded reporting-window measurements for
+this session, not individual-frame percentiles or proof about other games.
+The emulator did not exit in the report, so end-of-run frame statistics are absent.
+No explicit `gpu3d: on` line is present; actual GPU 3D activation remains to be
+verified despite the image's intended setting and working Panfrost compositor.
+
+Menu/Back presses and holds alone produced no action. The device tree assigns
+Menu's function key `BTN_MODE`; the DSperate profile uses SDL `guide` as its
+modifier, with modifier+X pause/menu, modifier+Y FPS and modifier+Start quit.
+Test these chords before treating Menu as broken. The physical Back key is a
+separate `adc-keys-back` input emitting `BTN_Z`, without an explicit DSperate
+binding. Confirm its events in the planned button test app before assigning an
+action; it must not be confused with SDL `back`, which represents DS Select.
+
 ## Remaining bring-up work
 
 - [x] User confirmed gameplay, audible sound and volume buttons with the actual ROM.
