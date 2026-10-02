@@ -16,14 +16,14 @@ Run these **sequentially on the same branch commit**, waiting for each to finish
 1. Baseline, with built-toolchain reuse disabled:
 
    ```sh
-   gh workflow run build-nightly.yml --ref build/toolchain-cache-speedup \
+   gh workflow run build-nightly.yml --ref build/baseos-toolchain-cache \
      -f BASEOS=true -f BENCHMARK=true -f CACHE_TOOLCHAIN=false
    ```
 
 2. Populate the toolchain cache:
 
    ```sh
-   gh workflow run build-nightly.yml --ref build/toolchain-cache-speedup \
+   gh workflow run build-nightly.yml --ref build/baseos-toolchain-cache \
      -f BASEOS=true -f BENCHMARK=true -f CACHE_TOOLCHAIN=true
    ```
 
