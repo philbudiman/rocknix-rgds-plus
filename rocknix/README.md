@@ -98,6 +98,19 @@ wrong FDT was corrected, then went black. Retrieved reports showed missing Sway
 configuration and GPU initialization problems. Source patch 0005 addressed these
 but has not been confirmed on hardware. This port makes no hardware-success claim.
 
+## First BaseOS 18 hardware report
+
+The first TF2 report confirmed both 59.826 Hz panel modes, Panfrost/EGL startup,
+Vulkan device enumeration and a reported 2,000,000 µA charge limit. The battery
+reported 16%, consistent with the red status LED. The launcher selected macOS's
+4 KB `._New Super Mario Bros. (USA).nds` metadata file instead of the actual ROM;
+auto-selection now skips hidden files, with a regression check for this case.
+For image 18, set `roms/baseos/autostart.txt` to
+`nds/New Super Mario Bros. (USA).nds` to select the real game without reflashing.
+Speaker amplifier initialization errors also appear in the report. Gameplay,
+GPU 3D, audible sound, touch and suspend remain unconfirmed; retest the actual
+ROM first before changing audio or GPU behavior.
+
 ## Focused hardware test
 
 1. Flash the new **BaseOS Specific** image to spare TF1. Check its checksum and

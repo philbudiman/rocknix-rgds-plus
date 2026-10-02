@@ -60,6 +60,21 @@ dts = (r / 'projects/ROCKNIX/devices/RK3566/linux/dts/rockchip/rk3568-anbernic-r
 assert 'constant-charge-current-max-microamp = <2000000>;' in dts
 print('PASS: install hooks, stock/BaseOS driver selection, two-panel readiness, shell syntax and 2 A charging limit')
 
+# macOS AppleDouble files end in .nds too; auto-selection must skip them.
+selection = launcher[launcher.index('rom=""'):launcher.index('\nif [ -n "${rom}" ]; then')]
+with tempfile.TemporaryDirectory() as temporary:
+    roms = Path(temporary)
+    (roms / 'nds').mkdir()
+    game = roms / 'nds/New Super Mario Bros. (USA).nds'
+    game.touch()
+    (roms / 'nds/._New Super Mario Bros. (USA).nds').touch()
+    (roms / 'nds/.hidden.zip').touch()
+    assert bash('ROMS=$1; ' + selection + 'printf "%s" "$rom"', roms) == str(game)
+    (roms / 'baseos').mkdir()
+    (roms / 'baseos/autostart.txt').write_text('nds/New Super Mario Bros. (USA).nds\r\n')
+    assert bash('ROMS=$1; ' + selection + 'printf "%s" "$rom"', roms) == str(game)
+print('PASS: ROM selection skips macOS metadata and preserves explicit paths with spaces')
+
 # Reports must survive boot-008/009 rather than treating the suffix as octal.
 count = launcher[launcher.index('n=$(('):launcher.index('\nLOG=')]
 assert bash('last=008; ' + count + '; echo "$n"').strip() == '9'
