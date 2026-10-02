@@ -215,6 +215,33 @@ Combined GPU/microphone/power build
 [37055711060](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37055711060)
 started at `2693875fbd`; verify its final image before hardware retesting.
 
+## Two-press startup investigation
+
+Boot 003 provides evidence for an apparent failed start caused by early sleep:
+Linux starts at the device's reported 16:52:18, logind receives Power events and
+requests suspend at 16:52:20, and the sleep operation starts at 16:52:23. The
+charger driver reports about 150 seconds asleep; userspace resumes at 16:54:57,
+and Sway starts at 16:54:58. Thus that boot slept before the compositor started.
+These are timestamps from the device's incorrectly dated clock, not real-world
+wall-clock dates. The relative sequence and sleep-duration report are the evidence.
+
+The leading hypothesis is that a startup press/held or queued Power event is
+accepted again by logind during early boot, immediately requesting sleep under
+the old policy. A subsequent press wakes it and lets display initialization finish,
+which can look like the first press never powered on. The log confirms early
+Power-triggered sleep; it does not identify precisely which physical press produced
+each event or prove this explains every card-reinsertion/cold-start occurrence.
+The new lid-only policy already addresses this userspace trigger; no further PMIC,
+bootloader or sleep-rail change is justified yet.
+
+After the new image is verified, test several clean shutdown/cold-start cycles
+with lid open and charger disconnected, then repeat with card removal/reinsertion
+only after confirmed shutdown. Use a normal startup hold and release, then wait
+for boot; do not keep holding throughout startup because the new running-system
+five-second hold intentionally requests shutdown. Compare stock only if needed.
+If the first start still fails without an early Power-triggered suspend, obtain
+serial/early-boot evidence before attributing it to PMIC state or SD-card startup.
+
 ## Remaining bring-up work
 
 - [x] User confirmed gameplay, audible sound and volume buttons with the actual ROM.
