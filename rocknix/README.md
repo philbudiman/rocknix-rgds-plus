@@ -68,9 +68,7 @@ published draft release `baseos-smoke-36954725526` with only
 `SMOKE-TEST-DO-NOT-FLASH.img.gz` and its checksum.
 
 Full BaseOS build [36954906825](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/36954906825)
-started from port commit `80096ae859`, with suspend changes enabled. The build
-container completed, and the toolchain job restored the persistent compiler
-cache and started compilation.
+completed from port commit `80096ae859`, with suspend changes enabled.
 
 Build 16 published, and downloaded-image checks confirmed its SHA256, correct
 DS Plus FDT and compiled 2,000,000 µA charging value. Rootfs inspection then found
@@ -78,11 +76,22 @@ that `scripts/install` independently copied `111-sway-init` back into the image,
 bypassing patch 0005's build-hook exclusion. **Do not flash BaseOS 16 for bring-up.**
 The fix removes that initializer in Sway's final install hook; the regression check
 now executes the actual generic installer's copy block, and CI checks the completed
-rootfs before uploading a BaseOS image. A corrected full build is required.
-Hardware tests remain pending.
+rootfs before uploading a BaseOS image.
 
-Source build #6 (`36952934140`) was still compiling during initial port inspection;
-its stage-0 kernel check passed. It was left running.
+Corrected full build [36967236204](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/36967236204)
+from `49916c3a07` succeeded and published
+[BaseOS 18](https://github.com/philbudiman/rocknix-rgds-plus/releases/tag/rocknix-baseos-18-36967236204).
+Downloaded-image verification passed: SHA256 matches, extlinux selects the DS Plus
+DTB, the compiled charging value is 2,000,000 µA, both panels use 62411 kHz and
+stock suspend configuration is present. The final SquashFS excludes `111-sway-init`,
+EmulationStation and libmali; its dedicated Sway configuration matches the source,
+generic touch remapping is disabled, DSperate GPU 3D is enabled and Panfrost loads
+early. Persistent toolchain and image compiler caches were saved successfully.
+These are off-device checks; rendering, touch, audio and suspend still need hardware
+confirmation. Scheduled build follow-up stops at this handoff.
+
+Source build #6 (`36952934140`) completed successfully. It was left running
+during this port; no existing builds were cancelled.
 
 The earlier `rocknix-baseos-4` card reached the ROCKNIX logo/userspace after its
 wrong FDT was corrected, then went black. Retrieved reports showed missing Sway
