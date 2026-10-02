@@ -18,7 +18,12 @@ for profile, expected in [('yes', ['panfrost', '', '', '']), ('no', ['mali panfr
     result = bash('get_kernel_make_extracmd() { :; }; BASEOS=$1; source "$2"; printf "%s\\n" "$GRAPHIC_DRIVERS" "$ADDITIONAL_DRIVERS" "$ADDITIONAL_PACKAGES" "$ADDITIONAL_PACKAGES_32BIT"', profile, r / 'projects/ROCKNIX/devices/RK3566/options')
     assert result.splitlines() == expected, result
 
-# Exercise real install hooks, including the frontend config writer exclusion.
+# Exercise the generic installer's actual autostart-copy block as well as hooks.
+installer = (r / 'scripts/install').read_text()
+start = installer.index('    if [ -d ${PKG_TMP_DIR}/autostart ]; then')
+end = installer.index('\n    fi', start) + len('\n    fi')
+generic_autostart = installer[start:end]
+
 with tempfile.TemporaryDirectory() as temporary:
     root = Path(temporary)
     for profile in ('yes', 'no'):
@@ -30,6 +35,8 @@ safe_remove() { rm -rf "$@"; }
 enable_service() { echo "$1" >> "$INSTALL/enabled"; }
 source "$PKG_DIR/package.mk"
 post_makeinstall_target
+PKG_TMP_DIR=$PKG_DIR
+''' + generic_autostart + '''
 post_install
 ''', image, sway, profile)
         assert (image / 'usr/lib/autostart/common/111-sway-init').exists() == (profile == 'no')

@@ -70,5 +70,10 @@ post_makeinstall_target() {
 
 post_install() {
   # BaseOS maps touch to the lower panel in its compositor config.
-  [ "${BASEOS}" = "yes" ] || enable_service sway-touch.service
+  if [ "${BASEOS}" = "yes" ]; then
+    # scripts/install copies package autostart files independently of build hooks.
+    safe_remove ${INSTALL}/usr/lib/autostart/common/111-sway-init
+  else
+    enable_service sway-touch.service
+  fi
 }

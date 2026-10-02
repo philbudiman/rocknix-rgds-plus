@@ -97,6 +97,16 @@ jobs:
             output.log
             ./build.ROCKNIX-${{ inputs.DEVICE }}.aarch64/.threads/logs/
 
+      - name: Verify final BaseOS startup files
+        if: inputs.BASEOS
+        run: |
+          image=build.ROCKNIX-RK3566.aarch64/image/system
+          test -f "$image/usr/bin/baseos-launch"
+          test -f "$image/usr/bin/dsperate"
+          test ! -e "$image/usr/bin/emulationstation"
+          test ! -e "$image/usr/lib/autostart/common/111-sway-init"
+          cmp projects/ROCKNIX/packages/baseos/baseos/config/sway.config "$image/usr/share/sway/config"
+
       - name: Get date
         run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV
 

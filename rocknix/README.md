@@ -70,8 +70,16 @@ published draft release `baseos-smoke-36954725526` with only
 Full BaseOS build [36954906825](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/36954906825)
 started from port commit `80096ae859`, with suspend changes enabled. The build
 container completed, and the toolchain job restored the persistent compiler
-cache and started compilation. Final image inspection and hardware tests remain
-pending.
+cache and started compilation.
+
+Build 16 published, and downloaded-image checks confirmed its SHA256, correct
+DS Plus FDT and compiled 2,000,000 µA charging value. Rootfs inspection then found
+that `scripts/install` independently copied `111-sway-init` back into the image,
+bypassing patch 0005's build-hook exclusion. **Do not flash BaseOS 16 for bring-up.**
+The fix removes that initializer in Sway's final install hook; the regression check
+now executes the actual generic installer's copy block, and CI checks the completed
+rootfs before uploading a BaseOS image. A corrected full build is required.
+Hardware tests remain pending.
 
 Source build #6 (`36952934140`) was still compiling during initial port inspection;
 its stage-0 kernel check passed. It was left running.
