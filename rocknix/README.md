@@ -213,7 +213,21 @@ cannot remove a PMIC's forced-off behavior on an excessively long hold.
 `system.txt` now includes the effective logind configuration for diagnosis.
 Combined GPU/microphone/power build
 [37055711060](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37055711060)
-started at `2693875fbd`; verify its final image before hardware retesting.
+completed successfully at `2693875fbd`. Its published **BaseOS 25** image passed
+the off-device checks below; GPU, microphone and power changes await hardware retesting.
+
+### Verified BaseOS 25 image
+
+[Release and Specific image](https://github.com/philbudiman/rocknix-rgds-plus/releases/tag/rocknix-baseos-25-37055711060).
+SHA256: `41f8c7d907bc1c47f0c7d9189e115d02de4ca66c67d0c9e6c2903b7d3f49315c`.
+The downloaded image matches its published checksum. Extracted boot/rootfs checks
+confirm the DS Plus FDT, 2,000,000 µA charging, both 62411 kHz panels, stock suspend,
+and exact source matches for Sway, launcher, logind policy and fake-suspend guard.
+GPU/microphone/timing flags, metadata exclusion and early Panfrost are installed;
+frontend initializer, EmulationStation, libmali, GPU blacklist and enabled generic
+touch service are absent. Toolchain and image compiler caches were saved.
+These checks do not establish GPU acceleration, microphone capture, cold startup,
+clean shutdown or lid wake on hardware. Return new boot reports after testing.
 
 ## Two-press startup investigation
 
@@ -245,8 +259,10 @@ serial/early-boot evidence before attributing it to PMIC state or SD-card startu
 ## Remaining bring-up work
 
 - [x] User confirmed gameplay, audible sound and volume buttons with the actual ROM.
-- [ ] Retest corrected panel assignment and lower touch; measure FPS/speed/timings,
-  confirm GPU 3D and physical menu/back mappings. Investigate speaker startup
+- [x] BaseOS 19 hardware confirmed corrected panels and lower touch. Boot 004
+  measured about 59.75 FPS overall (59.8 median); GPU 3D remains unconfirmed.
+- [ ] Test BaseOS 25 GPU 3D, microphone, Menu+X pause, Menu+Y FPS and Menu+Start
+  quit; Back remains unmapped. Compare performance and investigate speaker startup
   errors if playback or resume audio becomes unreliable.
 - [ ] Test real microphone input in a game that requests it. DSperate 3.0.0
   enables `audio.mic` by default and lazily opens ALSA `plughw:0,0` on the game's
@@ -270,7 +286,7 @@ serial/early-boot evidence before attributing it to PMIC state or SD-card startu
   these interactions. Dark screens and an extinguished LED alone do not prove
   shutdown. Use an explicit `poweroff` command when available before removing
   cards on image 19; retest the new policy before relying on its long-press shutdown.
-- [ ] Verify lid/power suspend and wake, display/audio/touch recovery, sleep
+- [ ] Verify lid-close suspend/lid-open wake, display/audio/touch recovery, sleep
   drain and subsequent stock-card boot without disconnecting the battery.
 - [ ] After basic bring-up succeeds, port MinUI and `rgds-hwkeys` from
   `philbudiman/ds-plus-minios`, including brightness and KMS CTM/gamma night mode.
