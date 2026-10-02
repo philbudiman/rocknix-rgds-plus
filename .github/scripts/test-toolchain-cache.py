@@ -42,6 +42,7 @@ with tempfile.TemporaryDirectory() as directory:
     write('bin/dpkg-query', '#!/bin/sh\ncat libraries\n', True)
     write('config/options', '''ROOT="$PWD"
 PROJECT=ROCKNIX
+DISTRO=ROCKNIX
 DEVICE=RK3566
 ARCH=aarch64
 LOCAL_CC="$ROOT/compiler"
@@ -55,6 +56,9 @@ calculate_stamp() {
 }
 ''')
     write('projects/ROCKNIX/devices/RK3566/options', 'device v1\n')
+    write('distributions/ROCKNIX/options', 'distribution v1\n')
+    (root / 'distributions/Other').mkdir()
+    (root / 'distributions/Other/broken-link').symlink_to('missing')
     run('git', 'init', '-q')
     run('git', 'add', '.')
     env = {**os.environ, 'PATH': str(root / 'bin') + os.pathsep + os.environ['PATH'], 'BASEOS': 'yes', 'BASE_ONLY': 'true'}
@@ -67,7 +71,7 @@ calculate_stamp() {
     assert key() == original, 'unchanged inputs must reuse the toolchain'
     write('packages/baseos/package.mk', 'unrelated application edit\n')
     assert key() == original, 'application recipes must not invalidate the toolchain'
-    for path in ['packages/gcc/package.mk', 'packages/nested/package.mk', 'compiler', 'libraries', 'projects/ROCKNIX/devices/RK3566/options', 'scripts/genbuildplan.py']:
+    for path in ['packages/gcc/package.mk', 'packages/nested/package.mk', 'compiler', 'libraries', 'projects/ROCKNIX/devices/RK3566/options', 'distributions/ROCKNIX/options', 'scripts/genbuildplan.py']:
         previous = (root / path).read_text()
         write(path, previous + ('\n# changed\n' if path.endswith('.py') else 'changed\n'), path.endswith('.py'))
         assert key() != original, f'{path} must invalidate the toolchain'

@@ -33,7 +33,7 @@ PY
   printf '%s\n' "$ROOT" "$PROJECT" "$DEVICE" "$ARCH" "${BASEOS:-no}" "${BASE_ONLY:-false}" "${DS_ONLY:-false}" "${SUSPEND:-true}"
   dpkg-query -W -f='${Package} ${Version}\n' | LC_ALL=C sort
   sha256sum "$LOCAL_CC" "$LOCAL_CXX"
-  git ls-files -z -- Dockerfile Makefile config scripts tools distributions \
+  git ls-files -z -- Dockerfile Makefile config scripts tools "distributions/$DISTRO" \
     .github/scripts/toolchain-cache-key.sh .github/workflows/build-aarch64-toolchain.yml \
     "projects/$PROJECT/options" "projects/$PROJECT/patches" "projects/$PROJECT/linux" \
     "projects/$PROJECT/devices/$DEVICE/options" "projects/$PROJECT/devices/$DEVICE/patches" \
