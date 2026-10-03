@@ -387,3 +387,25 @@ retention still applies. Suspend/GPU settings and charging limits are unchanged.
 Reproduce menu close/open followed by level close/open and return the full newest
 boot folder, including these live logs. Do not infer hardware recovery from FPS
 output alone or claim this logging change fixes the freeze.
+
+### Verified diagnostic BaseOS 29
+
+[Release and Specific image](https://github.com/philbudiman/rocknix-rgds-plus/releases/tag/rocknix-baseos-29-37097979487),
+build [37097979487](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37097979487)
+at `851a6f0bed`, completed successfully. Downloaded checksum:
+`4ee305901232ad1e26de25fe518f0db8891c05f8004fd735ffc803fbc3a46471`.
+
+Off-device inspection of the actual image confirms the bounded live-log readers
+and GPU menu CLI bridge match source. Dedicated Sway, launcher, wrapper, power
+policy and fake-suspend guard match the build commit exactly. The compiled DS
+Plus tree is identical to BaseOS 25: 2,000,000 µA battery charging, 62411 kHz
+panels and stock suspend preserved. Panfrost and the minimal profile exclusions
+remain intact; both persistent compiler caches were saved. This is a diagnostic
+image, not a fix for the lid-wake freeze or RGA display-reopen bug.
+
+Flash spare TF1, keep TF2/ROM selection, leave display options unchanged, then
+repeat menu lid-close/open followed by entering a level and another close/open.
+If the game freezes, record whether Menu+X, volume buttons and Power hold still
+respond; this helps separate game/input failure from compositor or system failure.
+Return the entire newest boot folder, especially `journal-live.txt`,
+`sway-live.txt` and `dsperate.log`. Microphone testing remains deferred.
