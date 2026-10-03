@@ -71,7 +71,20 @@ gh workflow run build-nightly.yml \
   verification passed.
 - Changed-launcher validation: [37102810042](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37102810042),
   commit `edeb142ea90ae32e7a9a74b30c69641704f44bba`, dispatched 06:21:58 UTC.
-  It adds a harmless launcher comment. Result pending; do not duplicate.
+  It adds a harmless launcher comment. **Succeeded in 4m24s**, restoring the
+  identical package key. Fresh image build took 2m02s; restore 15s, extraction
+  33s. Installed-file comparisons, current build identity and checksum passed.
+- Independently downloaded the changed-launcher `.img.gz`, verified SHA256
+  `a823e003775acec861f5fe561729d4629819cdc06d69ace70fd43b26da608ad2`,
+  extracted the GPT boot partition and its SquashFS SYSTEM, and compared the
+  actual image's launcher, Sway config and logind power config to source.
+  The launcher contains the new comment and `/etc/os-release` has the changed
+  source commit, not the cache population commit.
+- Verified artifact and extracted files:
+  `/private/tmp/rgds-package-benchmark-results/changed-image/`.
+- The matched baseline is still compiling. Await it before reporting the final
+  savings/recommendation; no further warm runs are necessary unless a concern
+  appears. Local key invalidation checks and workflow validation passed again.
 - Raw population logs: `/private/tmp/rgds-package-population.log`; use
   `gh api repos/philbudiman/rocknix-rgds-plus/actions/jobs/JOB_ID/logs` for logs
   (`gh run view --log` returned an empty file).
