@@ -10,6 +10,14 @@ on:
         description: "test BaseOS without publishing or updating release ccache"
         type: boolean
         default: false
+      PACKAGE_CACHE_EXPERIMENT:
+        description: Run the isolated compiled-package benchmark
+        type: boolean
+        default: false
+      CACHE_PACKAGES:
+        description: Reuse compiled packages in the isolated benchmark
+        type: boolean
+        default: true
       CACHE_TOOLCHAIN:
         description: "reuse the built BaseOS toolchain (disable for benchmark baseline)"
         type: boolean
@@ -123,6 +131,10 @@ jobs:
       - name: Determine release type
         id: set-release-type
         run: |
+          if [[ "${{ inputs.PACKAGE_CACHE_EXPERIMENT }}" == "true" && "${{ inputs.BENCHMARK }}" != "true" ]]; then
+            echo "Package-cache experiment requires BENCHMARK=true." >&2
+            exit 1
+          fi
           if [[ "${{ inputs.BENCHMARK }}" == "true" && "${{ inputs.BASEOS }}" != "true" ]]; then
             echo "Benchmark requires BASEOS=true." >&2
             exit 1
@@ -215,7 +227,7 @@ jobs:
       BENCHMARK: ${{ inputs.BENCHMARK == true }}
 
   build-devices:
-    if: (github.event_name != 'schedule') || (github.repository == 'ROCKNIX/distribution' && github.ref_name == 'next')
+    if: ${{ !inputs.PACKAGE_CACHE_EXPERIMENT && ((github.event_name != 'schedule') || (github.repository == 'ROCKNIX/distribution' && github.ref_name == 'next')) }}
     name: Build Devices
     needs:
       - set-envs
@@ -237,6 +249,13 @@ jobs:
       CACHE_TOOLCHAIN: ${{ inputs.CACHE_TOOLCHAIN != false }}
       SAVE_CCACHE: ${{ !inputs.BENCHMARK }}
       SUSPEND: ${{ inputs.SUSPEND != false }}
+
+  package-cache-benchmark:
+    if: inputs.BENCHMARK && inputs.PACKAGE_CACHE_EXPERIMENT
+    needs: [set-envs, build-docker]
+    uses: ./.github/workflows/build-baseos-cache-benchmark.yml
+    with:
+      CACHE_PACKAGES: ${{ inputs.CACHE_PACKAGES }}
 
   release-baseos:
     if: ${{ inputs.BASEOS && !inputs.BENCHMARK && !cancelled() }}

@@ -39,13 +39,24 @@ PY
     "projects/$PROJECT/options" "projects/$PROJECT/patches" "projects/$PROJECT/linux" \
     "projects/$PROJECT/devices/$DEVICE/options" "projects/$PROJECT/devices/$DEVICE/patches" \
     "projects/$PROJECT/devices/$DEVICE/linux" | xargs -0 sha256sum
+  if [ "${CACHE_LAYER:-}" = "baseos-packages" ]; then
+    printf '%s\n' "$CACHE_LAYER"
+    sha256sum .github/workflows/build-baseos-cache-benchmark.yml
+  fi
   while IFS= read -r package; do
     (
       # Native stamp hashing tolerates missing optional patch directories.
       set +o pipefail
       . config/options "$package"
       printf '%s ' "$package"
-      calculate_stamp
+      if [ "${CACHE_LAYER:-}" = "baseos-packages" ] && [ "$package" = "baseos" ]; then
+        # This leaf package is always cleaned/rebuilt; only its runtime files are omitted.
+        git ls-files -z -- 'packages/**/baseos/**' "projects/$PROJECT/packages/baseos" \
+          "projects/$PROJECT/devices/$DEVICE/packages/baseos" \
+          ':!**/baseos/scripts/**' ':!**/baseos/config/**' | xargs -0 sha256sum
+      else
+        calculate_stamp
+      fi
     )
   done < "$tmp/names"
 } | sha256sum | cut -d ' ' -f 1

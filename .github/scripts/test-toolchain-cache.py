@@ -28,7 +28,8 @@ with tempfile.TemporaryDirectory() as directory:
         ('gettext', '', '', 'helper'),
         ('helper', '', '', 'nested'),
         ('nested', '', '', ''),
-        ('baseos', '', '', ''),
+        ('baseos', '', 'toolchain', ''),
+        ('image', '', 'baseos', ''),
     ]:
         packages.append(dict(name=name, hierarchy='global', section='', bootstrap='', init='', host=host, target=target, unpack=unpack))
         write(f'packages/{name}/package.mk', name + '\n')
@@ -37,6 +38,9 @@ with tempfile.TemporaryDirectory() as directory:
     write('packages.json', graph)
     write('scripts/genbuildplan.py', (repo / 'scripts/genbuildplan.py').read_text(), True)
     write('.github/scripts/toolchain-cache-key.sh', (repo / '.github/scripts/toolchain-cache-key.sh').read_text())
+    write('.github/workflows/build-baseos-cache-benchmark.yml', 'benchmark workflow\n')
+    write('projects/ROCKNIX/packages/baseos/package.mk', 'baseos recipe\n')
+    write('projects/ROCKNIX/packages/baseos/scripts/baseos-launch', 'launcher v1\n')
     write('compiler', 'compiler v1\n')
     write('libraries', 'libc 1\n')
     write('bin/dpkg-query', '#!/bin/sh\ncat libraries\n', True)
@@ -86,6 +90,20 @@ calculate_stamp() {
     shutil.copytree(root, other, symlinks=True, ignore=shutil.ignore_patterns('relocated'))
     moved = subprocess.run(['bash', '.github/scripts/toolchain-cache-key.sh', 'toolchain'], cwd=other, env=env, check=True, capture_output=True, text=True)
     assert moved.stdout.strip() != original, 'archives cannot move between absolute build paths'
+    def image_key():
+        return run('bash', '.github/scripts/toolchain-cache-key.sh', 'image', env={**env, 'CACHE_LAYER': 'baseos-packages'})
+
+    image_original = image_key()
+    write('projects/ROCKNIX/packages/baseos/scripts/baseos-launch', 'launcher v2\n')
+    assert image_key() == image_original, 'always-rebuilt launcher must reuse dependencies'
+    write('projects/ROCKNIX/packages/baseos/config/sway.config', 'updated config\n')
+    run('git', 'add', 'projects/ROCKNIX/packages/baseos/config/sway.config')
+    assert image_key() == image_original, 'always-rebuilt config must reuse dependencies'
+    for path in ['packages/nested/package.mk', 'projects/ROCKNIX/packages/baseos/package.mk']:
+        previous = (root / path).read_text()
+        write(path, previous + 'changed\n')
+        assert image_key() != image_original, f'{path} must invalidate package cache'
+        write(path, previous)
     write('packages.json', 'invalid graph\n')
     failed = subprocess.run(['bash', '.github/scripts/toolchain-cache-key.sh', 'toolchain'], cwd=root, env=env, capture_output=True, text=True)
     assert failed.returncode != 0, 'invalid dependency plans must fail closed'

@@ -1,0 +1,183 @@
+name: BaseOS package cache benchmark
+
+on:
+  workflow_call:
+    inputs:
+      CACHE_PACKAGES:
+        description: Reuse compiled BaseOS dependencies
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    env:
+      PROJECT: ROCKNIX
+      DEVICE: RK3566
+      ARCH: aarch64
+      BASEOS: "yes"
+      BASE_ONLY: "true"
+      DS_ONLY: "false"
+      SUSPEND: "true"
+      IMAGE_SUFFIX: BaseOS
+      EMULATION_DEVICE: "no"
+      ENABLE_32BIT: "no"
+      MODULES_PKG: "no"
+      JAVA_HOME: /usr
+      AUTOREMOVE: "yes"
+      AUTOREMOVE_BLOCK: gcc glibc libtool flex
+      DISABLE_COLORS: "yes"
+      CCACHE_COMPILERCHECK: content
+      CCACHE_COMPRESS: "1"
+      CCACHE_COMPRESSLEVEL: "6"
+      CCACHE_SLOPPINESS: pch_defines,time_macros,include_file_mtime,include_file_ctime
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Calculate cache keys
+        id: keys
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "CONTAINER=ghcr.io/$owner/rocknix-build:latest" >> "$GITHUB_ENV"
+          ./scripts/get_env > .env
+          container="ghcr.io/$owner/rocknix-build:latest"
+          key() {
+            docker run --init --env-file .env --rm --user "$(id -u):$(id -g)" \
+              -v "$PWD:$PWD" -w "$PWD" "$container" "$@"
+          }
+          toolchain=$(key bash .github/scripts/toolchain-cache-key.sh toolchain alsa-lib llvm:host)
+          packages=$(key env CACHE_LAYER=baseos-packages bash .github/scripts/toolchain-cache-key.sh image)
+          [[ "$toolchain" =~ ^[0-9a-f]{64}$ && "$packages" =~ ^[0-9a-f]{64}$ ]]
+          echo "toolchain=toolchain-v1-${{ runner.os }}-${{ runner.arch }}-$toolchain" >> "$GITHUB_OUTPUT"
+          echo "packages=baseos-packages-v1-${{ runner.os }}-${{ runner.arch }}-$packages" >> "$GITHUB_OUTPUT"
+
+      - name: Restore compiled packages
+        if: inputs.CACHE_PACKAGES
+        id: packages
+        uses: actions/cache/restore@v4
+        with:
+          path: build.baseos-packages.tar.zst
+          key: ${{ steps.keys.outputs.packages }}
+
+      - name: Maximize build space on cache miss
+        if: steps.packages.outputs.cache-hit != 'true'
+        uses: justinthelaw/maximize-github-runner-space@v0.9.0
+        with:
+          skip-components: docker-engine
+
+      - name: Restore toolchain on package cache miss
+        if: steps.packages.outputs.cache-hit != 'true'
+        id: toolchain
+        uses: actions/cache/restore@v4
+        with:
+          path: build.aarch64-toolchain.tar.zst
+          key: ${{ steps.keys.outputs.toolchain }}
+
+      - name: Retrieve compiler caches on package cache miss
+        if: steps.packages.outputs.cache-hit != 'true'
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER}"
+          for suffix in "" -toolchain; do
+            curl -L --fail --silent --show-error \
+              "https://github.com/$owner/${{ vars.CACHE_REPO || 'distribution-cache' }}/releases/download/ccache/ccache-aarch64-RK3566$suffix.tar" \
+              | tar -xf - || echo "Compiler cache unavailable."
+          done
+
+      - name: Extract cached build state
+        env:
+          PACKAGE_HIT: ${{ steps.packages.outputs.cache-hit == 'true' }}
+          TOOLCHAIN_HIT: ${{ steps.toolchain.outputs.cache-hit == 'true' }}
+        run: |
+          if [[ "$PACKAGE_HIT" == true ]]; then
+            tar --zstd -xf build.baseos-packages.tar.zst
+            rm build.baseos-packages.tar.zst
+          elif [[ "$TOOLCHAIN_HIT" == true ]]; then
+            tar --zstd -xf build.aarch64-toolchain.tar.zst
+            rm build.aarch64-toolchain.tar.zst
+          fi
+
+      - name: Build toolchain on cache miss
+        if: steps.packages.outputs.cache-hit != 'true' && steps.toolchain.outputs.cache-hit != 'true'
+        run: |
+          ./scripts/get_env > .env
+          docker run --init --env-file .env --rm --user "$(id -u):$(id -g)" \
+            -v "$PWD:$PWD" -w "$PWD" "$CONTAINER" bash -c './scripts/build_mt toolchain alsa-lib llvm:host' > toolchain.log 2>&1
+          tar --zstd -cf build.aarch64-toolchain.tar.zst \
+            ./build.ROCKNIX-RK3566.aarch64/toolchain ./build.ROCKNIX-RK3566.aarch64/build \
+            ./build.ROCKNIX-RK3566.aarch64/install_* ./build.ROCKNIX-RK3566.aarch64/.stamps
+
+      - name: Save toolchain on cache miss
+        if: steps.packages.outputs.cache-hit != 'true' && steps.toolchain.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build.aarch64-toolchain.tar.zst
+          key: ${{ steps.keys.outputs.toolchain }}
+
+      - name: Rebuild launcher and assemble fresh image
+        run: |
+          ./scripts/get_env > .env
+          docker run --init --env-file .env --rm --user "$(id -u):$(id -g)" \
+            -v "$PWD:$PWD" -w "$PWD" "$CONTAINER" \
+            bash -c './scripts/clean baseos && ./scripts/build_distro' > output.log 2>&1
+
+      - name: Verify current BaseOS files and build identity
+        run: |
+          image=build.ROCKNIX-RK3566.aarch64/image/system
+          cmp projects/ROCKNIX/packages/baseos/baseos/scripts/baseos-launch "$image/usr/bin/baseos-launch"
+          cmp projects/ROCKNIX/packages/baseos/baseos/config/sway.config "$image/usr/share/sway/config"
+          cmp projects/ROCKNIX/packages/baseos/baseos/config/60-baseos-power.conf "$image/usr/lib/systemd/logind.conf.d/60-baseos-power.conf"
+          grep -Fx "BUILD_ID=\"$GITHUB_SHA\"" "$image/etc/os-release"
+          test -f "$image/usr/bin/dsperate"
+          test ! -e "$image/usr/bin/emulationstation"
+          test ! -e "$image/usr/lib/autostart/common/111-sway-init"
+          (cd target && sha256sum -c ROCKNIX-*.img.gz.sha256)
+
+      - name: Archive compiled dependencies on cache miss
+        if: inputs.CACHE_PACKAGES && steps.packages.outputs.cache-hit != 'true'
+        run: |
+          tar --zstd -cf build.baseos-packages.tar.zst \
+            ./build.ROCKNIX-RK3566.aarch64/toolchain ./build.ROCKNIX-RK3566.aarch64/build \
+            ./build.ROCKNIX-RK3566.aarch64/install_* ./build.ROCKNIX-RK3566.aarch64/.stamps
+          du -h build.baseos-packages.tar.zst
+
+      - name: Save compiled dependencies
+        if: inputs.CACHE_PACKAGES && steps.packages.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build.baseos-packages.tar.zst
+          key: ${{ steps.keys.outputs.packages }}
+
+      - name: Report reuse and available disk
+        env:
+          CACHE_HIT: ${{ steps.packages.outputs.cache-hit == 'true' }}
+          CACHE_KEY: ${{ steps.keys.outputs.packages }}
+        run: |
+          echo "Package cache hit: $CACHE_HIT" >> "$GITHUB_STEP_SUMMARY"
+          echo "Package cache key: $CACHE_KEY" >> "$GITHUB_STEP_SUMMARY"
+          df -h
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: benchmark-logs
+          path: |
+            output.log
+            toolchain.log
+            build.ROCKNIX-RK3566.aarch64/.threads/joblog
+            build.ROCKNIX-RK3566.aarch64/.threads/history
+            build.ROCKNIX-RK3566.aarch64/.threads/logs/
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: BaseOS-benchmark-image
+          path: |
+            target/ROCKNIX-*.img.gz
+            target/ROCKNIX-*.img.gz.sha256
+          compression-level: 0
+          if-no-files-found: error
