@@ -56,6 +56,16 @@ gh workflow run build-nightly.yml \
 - Worktree: `/private/tmp/rgds-package-cache`.
 - Initial implementation: `2bdd135bd2f9787f32bc8f6fccc5b54769872b1f`.
 - Cache population run: [37097762068](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37097762068).
-- Awaiting population result. Fix genuine failures on this branch and retry.
-- Baseline, warm run, and changed-launcher run have not been dispatched yet.
+- Population succeeded: toolchain build/archive 39m34s, image build 35m26s,
+  package archive creation 1m07s, cache upload 9s. Package archive: 1.6 GiB.
+- Exact package key: `baseos-packages-v1-Linux-X64-3b487567a02c5729d914f272fe9874d8131873e7501e6ef19c83e906c627c262`.
+- Matched pair uses commit `260edb5694c54f7f3a761b7f6efeeab69b41c9c8`
+  (only documentation differs from population):
+  - No-package-reuse baseline: [37102231938](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37102231938).
+  - Warm package reuse: [37102237403](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37102237403).
+- Both dispatched at 06:11 UTC on October 3; results pending. Do not duplicate.
+- Changed-launcher run has not been dispatched yet.
+- Raw population logs: `/private/tmp/rgds-package-population.log`; use
+  `gh api repos/philbudiman/rocknix-rgds-plus/actions/jobs/JOB_ID/logs` for logs
+  (`gh run view --log` returned an empty file).
 - Local invalidation checks and workflow validation passed before dispatch.
