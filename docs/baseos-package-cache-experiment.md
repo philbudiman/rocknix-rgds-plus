@@ -63,7 +63,10 @@ gh workflow run build-nightly.yml \
   (only documentation differs from population):
   - No-package-reuse baseline: [37102231938](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37102231938).
   - Warm package reuse: [37102237403](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37102237403).
-- Both dispatched at 06:11 UTC on October 3. Baseline is still running.
+- Both dispatched at 06:11 UTC on October 3 and succeeded.
+- Baseline finished in **31m10s** (06:11:26 to 06:42:36 UTC), including a
+  confirmed exact toolchain-cache hit. Image build took 26m12s, disk cleanup
+  2m42s, compiler-cache retrieval 35s, toolchain restore 7s and extraction 23s.
 - Warm run succeeded in **4m48s** (06:11:32 to 06:16:20 UTC): cache restore
   15s, extraction 38s, fresh image build 2m19s, key calculation 41s, checkout
   23s. Cleanup, toolchain compilation, compiler-cache download and archive
@@ -82,10 +85,44 @@ gh workflow run build-nightly.yml \
   source commit, not the cache population commit.
 - Verified artifact and extracted files:
   `/private/tmp/rgds-package-benchmark-results/changed-image/`.
-- The matched baseline is still compiling. Await it before reporting the final
-  savings/recommendation; no further warm runs are necessary unless a concern
-  appears. Local key invalidation checks and workflow validation passed again.
+- All four planned builds succeeded. Local key invalidation checks and workflow
+  validation passed again. No further runs are required for this experiment.
 - Raw population logs: `/private/tmp/rgds-package-population.log`; use
   `gh api repos/philbudiman/rocknix-rgds-plus/actions/jobs/JOB_ID/logs` for logs
   (`gh run view --log` returned an empty file).
 - Local invalidation checks and workflow validation passed before dispatch.
+
+## Results and recommendation
+
+| Measurement | No package reuse | Warm package reuse | Updated launcher + reuse |
+| --- | --- | --- | --- |
+| Total elapsed | 31m10s | 4m48s | 4m24s |
+| Image build/assembly | 26m12s | 2m19s | 2m02s |
+| Disk cleanup | 2m42s | skipped | skipped |
+| Cache restore | 7s (toolchain) | 15s (packages) | 15s (packages) |
+| Cached-state extraction | 23s | 38s | 33s |
+| Source/image verification | passed | passed | passed |
+
+**GO: integrate the compiled-package cache into the normal BaseOS path.** The
+matched pair reduced elapsed time by 26m22s (84.6%, about 6.5 times faster).
+Both warm observations are below ten minutes. The changed-launcher run also
+proves the shortcut incorporates new application files and a fresh build
+identity; independently inspecting the emitted image confirms this beyond the
+staging-directory checks.
+
+The exact-key policy deliberately trades selective rebuilds for safety: kernel,
+library, dependency-recipe, service-file, build-script or environment changes
+can invalidate the entire package layer. Those builds remain slow. The cache
+uses approximately 1.6 GiB per key and can be evicted. Build-stamp invalidation
+is tested using a synthetic dependency graph with the real planner, not a
+second real kernel-version build. Broadly restoring an older package cache
+across dependency changes is not part of this recommendation.
+
+These are benchmark timings on GitHub-hosted runners, not a guarantee for every
+run. The matched baseline was faster than the earlier 46m57s two-job benchmark,
+so comparisons use this experiment's own 31m10s baseline. Both matched runs use
+the same commit and existing container/ccache; benchmark mode skips Docker
+publishing, release publishing and release-ccache writes. Integrating production
+publishing and testing hardware boot remain separate work. No changes were
+merged into `next`; the experiment remains opt-in on its branch. Monitoring can
+now be paused.
