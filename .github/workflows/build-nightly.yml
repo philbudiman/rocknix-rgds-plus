@@ -6,6 +6,14 @@ on:
     - cron: "0 0 1 * *"
   workflow_dispatch:
     inputs:
+      BENCHMARK:
+        description: "test BaseOS without publishing or updating release ccache"
+        type: boolean
+        default: false
+      CACHE_TOOLCHAIN:
+        description: "reuse the built BaseOS toolchain (disable for benchmark baseline)"
+        type: boolean
+        default: true
       release:
         description: 'Official release'
         required: false
@@ -115,6 +123,10 @@ jobs:
       - name: Determine release type
         id: set-release-type
         run: |
+          if [[ "${{ inputs.BENCHMARK }}" == "true" && "${{ inputs.BASEOS }}" != "true" ]]; then
+            echo "Benchmark requires BASEOS=true." >&2
+            exit 1
+          fi
           if [[ "${{ inputs.DS_ONLY }}" == "true" && "${{ inputs.BASEOS }}" == "true" ]]; then
             echo "DS_ONLY and BASEOS are separate profiles." >&2
             exit 1
@@ -200,6 +212,7 @@ jobs:
     uses: ./.github/workflows/build-docker-image.yml
     with:
       OWNER_LC: ${{ needs.set-envs.outputs.OWNER_LC }}
+      BENCHMARK: ${{ inputs.BENCHMARK == true }}
 
   build-devices:
     if: (github.event_name != 'schedule') || (github.repository == 'ROCKNIX/distribution' && github.ref_name == 'next')
@@ -221,10 +234,12 @@ jobs:
       OFFICIAL: ${{ needs.set-envs.outputs.OFFICIAL }}
       DS_ONLY: ${{ inputs.DS_ONLY == true }}
       BASEOS: ${{ inputs.BASEOS == true }}
+      CACHE_TOOLCHAIN: ${{ inputs.CACHE_TOOLCHAIN != false }}
+      SAVE_CCACHE: ${{ !inputs.BENCHMARK }}
       SUSPEND: ${{ inputs.SUSPEND != false }}
 
   release-baseos:
-    if: ${{ inputs.BASEOS && !cancelled() }}
+    if: ${{ inputs.BASEOS && !inputs.BENCHMARK && !cancelled() }}
     needs: build-devices
     permissions:
       contents: write

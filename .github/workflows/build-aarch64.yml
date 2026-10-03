@@ -20,6 +20,9 @@ on:
         description: "include stock BL31 suspend configuration and sleep rails"
         type: boolean
         default: true
+      SAVE_CCACHE:
+        type: boolean
+        default: true
 
 jobs:
   build-aarch64:
@@ -89,7 +92,7 @@ jobs:
           retry_interval: 10
 
       - name: Archive output.logs (${{ inputs.DEVICE }}-aarch64)
-        if: failure()
+        if: failure() || !inputs.SAVE_CCACHE
         uses: actions/upload-artifact@v7
         with:
           name: output.logs-${{ inputs.DEVICE }}-aarch64
@@ -157,6 +160,7 @@ jobs:
           tar --remove-files -cf ccache-aarch64-${{ inputs.DEVICE }}.tar ./build.ROCKNIX-${{ inputs.DEVICE }}.aarch64/.ccache  
 
       - name: Save ccache
+        if: inputs.SAVE_CCACHE
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ccache

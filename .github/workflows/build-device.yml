@@ -36,6 +36,12 @@ on:
         description: "include stock BL31 suspend configuration and sleep rails"
         type: boolean
         default: true
+      CACHE_TOOLCHAIN:
+        type: boolean
+        default: true
+      SAVE_CCACHE:
+        type: boolean
+        default: true
 
 jobs:
   build-arm:
@@ -55,6 +61,8 @@ jobs:
       DEVICE: ${{ inputs.DEVICE }}
       OWNER_LC: ${{ inputs.OWNER_LC }}
       BASEOS: ${{ inputs.BASEOS }}
+      CACHE_TOOLCHAIN: ${{ inputs.CACHE_TOOLCHAIN }}
+      SAVE_CCACHE: ${{ inputs.SAVE_CCACHE }}
       SUSPEND: ${{ inputs.SUSPEND }}
 
   build-aarch64-rust:
@@ -76,6 +84,7 @@ jobs:
       DEVICE: ${{ inputs.DEVICE }}
       OWNER_LC: ${{ inputs.OWNER_LC }}
       BASEOS: ${{ inputs.BASEOS }}
+      SAVE_CCACHE: ${{ inputs.SAVE_CCACHE }}
       SUSPEND: ${{ inputs.SUSPEND }}
 
   build-aarch64-mame-lr:
