@@ -126,3 +126,21 @@ publishing, release publishing and release-ccache writes. Integrating production
 publishing and testing hardware boot remain separate work. No changes were
 merged into `next`; the experiment remains opt-in on its branch. Monitoring can
 now be paused.
+
+## Latest-next validation (October 3)
+
+The user requested merging current `next` and validating the combined changes.
+Merged `origin/next` at `df1ce9632d` into this branch without conflicts; merge
+commit `afa934145af5a97cb90c5e6247b8d56699b0d832`. The two new commits add bounded
+live suspend/compositor logging to the launcher and accompanying checks/docs.
+Local package-cache invalidation tests, workflow validation, Bash syntax, and
+`python3 rocknix/check-bringup.py .` passed, including the new bounded-log tests.
+
+Validation run: [37131595777](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37131595777),
+dispatched at 14:59:03 UTC. Result pending. Verify exact package reuse, current
+launcher/config/image identity, and independently inspect the emitted image's
+launcher for the new `journal-live.txt` and `sway-live.txt` pipelines. Changes
+are restricted to the experiment branch; nothing has been pushed into `next`.
+An additional baseline is unnecessary if this run hits the same cache and
+passes; investigate and rerun only if a concrete failure or unexpected miss
+requires it. Pause monitoring again after recording and reporting the result.
