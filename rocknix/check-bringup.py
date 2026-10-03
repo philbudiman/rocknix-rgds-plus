@@ -48,6 +48,17 @@ post_install
 
 launcher = (b / 'scripts/baseos-launch').read_text()
 subprocess.run(['bash', '-n', str(b / 'scripts/baseos-launch')], check=True)
+# Run actual live-report pipelines with producers exceeding each disk limit.
+streams = '\n'.join(line for line in launcher.splitlines() if 'journal-live.txt' in line or 'sway-live.txt' in line)
+with tempfile.TemporaryDirectory() as temporary:
+    bash('''LOG=$1
+journalctl() { dd if=/dev/zero bs=1048576 count=9 2>/dev/null; }
+tail() { dd if=/dev/zero bs=1048576 count=3 2>/dev/null; }
+''' + streams + '\nwait', temporary)
+    assert (Path(temporary) / 'journal-live.txt').stat().st_size == 8388608
+    assert (Path(temporary) / 'sway-live.txt').stat().st_size == 2097152
+print('PASS: live suspend/compositor reports remain bounded when the emulator does not exit')
+
 # Execute the production readiness loop against one-panel, inactive-panel and ready states.
 loop = launcher[launcher.index('ready=false'):launcher.index('\nreport\nif [ "${ready}"')]
 for outputs, expected in [([{'name': 'DSI-1', 'active': True}], 'false'),

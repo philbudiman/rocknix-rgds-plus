@@ -357,3 +357,33 @@ DS Plus LED initialization. Earlier-than-kernel feedback needs board-specific
 bootloader work, or a separately tested early GPIO status-LED approach. Current
 reports do not timestamp physical LED illumination; do not claim a precise
 savings or change PMIC/charging behavior to achieve it.
+
+## Boot 006: second lid-wake failure
+
+The user reports one successful lid close/open at the New Super Mario Bros menu,
+then frozen gameplay, static-like corruption and unresponsive controls after
+closing/opening in a level. Treat repeat suspend/wake as failing; defer MinUI
+and hwkeys until this recovery issue is understood. Microphone testing is
+explicitly deferred until after MinUI/its test tools and does not block bring-up.
+
+Boot 006 starts GPU 3D and both RGA presenters successfully. The emulator log
+continues recording frame windows; a transient 13.1 FPS window is followed by
+59.8 FPS windows. That does not prove the game or its displayed contents advanced.
+There is no renderer restart, RGA-to-CPU transition, explicit GPU error or logged
+lid transition in this report. Unlike Boot 005, it does not establish the display
+reopen bug as the cause. Guest lid/wake handling and GPU/display recovery remain
+hypotheses, not confirmed diagnoses.
+
+The saved journal, kernel and compositor reports end around launcher startup
+(~20 seconds), before either lid test. They are snapshots taken before launch
+and again only after the emulator exits; a frozen emulator never triggers that
+final report. They cannot establish whether both cycles entered deep suspend or
+whether the kernel/GPU/compositor reported an error on wake.
+
+The next diagnostic image streams `journal-live.txt` (maximum 8 MiB) and
+`sway-live.txt` (maximum 2 MiB) in each boot report, independently of emulator
+exit. Readers belong to the launcher service and are stopped with it; ten-boot
+retention still applies. Suspend/GPU settings and charging limits are unchanged.
+Reproduce menu close/open followed by level close/open and return the full newest
+boot folder, including these live logs. Do not infer hardware recovery from FPS
+output alone or claim this logging change fixes the freeze.
