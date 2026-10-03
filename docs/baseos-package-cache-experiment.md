@@ -137,10 +137,21 @@ Local package-cache invalidation tests, workflow validation, Bash syntax, and
 `python3 rocknix/check-bringup.py .` passed, including the new bounded-log tests.
 
 Validation run: [37131595777](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37131595777),
-dispatched at 14:59:03 UTC. Result pending. Verify exact package reuse, current
-launcher/config/image identity, and independently inspect the emitted image's
-launcher for the new `journal-live.txt` and `sway-live.txt` pipelines. Changes
-are restricted to the experiment branch; nothing has been pushed into `next`.
-An additional baseline is unnecessary if this run hits the same cache and
-passes; investigate and rerun only if a concrete failure or unexpected miss
-requires it. Pause monitoring again after recording and reporting the result.
+dispatched at 14:59:03 UTC. **Passed in 4m20s** (completed 15:03:23 UTC).
+The identical package key was restored: cache restore 11s, extraction 21s,
+fresh image assembly 2m26s. Cleanup and toolchain build remained skipped.
+All current-file comparisons, build-identity and checksum checks passed.
+
+Independently downloaded the image, verified SHA256 `48e88b283aa1cce361fc69e6586b0607e27d153b0031c75a2f57259f56c8e94f`,
+extracted its GPT boot partition and SquashFS SYSTEM, and compared the actual
+launcher, Sway config and logind power config with the merged source. The image
+contains both new bounded `journal-live.txt` and `sway-live.txt` pipelines and
+build identity `afa934145af5a97cb90c5e6247b8d56699b0d832`.
+
+The verified image and checksum are also saved under:
+`/Users/phillipbudiman/.codex/.chatgpt-projects/g-p-6abf1130a1388191a09781e20faa5e0c/outputs/package-cache-next-37131595777`.
+
+**Latest-next validation passed; no additional builds are needed.** Hardware
+boot remains untested. Production integration and publishing remain separate
+work. Changes are restricted to the experiment branch; nothing was pushed
+into `next`. Monitoring is paused again.
