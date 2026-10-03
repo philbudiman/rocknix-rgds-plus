@@ -53,6 +53,9 @@ AUTOSAVE=$(get_setting autosave "${PLATFORM}" "${GAME}")
 
 OPTS=("--fullscreen")
 
+# Keep the menu config consistent with BaseOS's renderer override.
+[ "${DS_GPU3D:-}" = "1" ] && OPTS+=("--gpu3d")
+
 #Default layout
 case "${SLAYOUT}" in
 	vertical|horizontal|single|pip|dominant_v|dominant_h)

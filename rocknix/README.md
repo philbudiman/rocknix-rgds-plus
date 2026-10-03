@@ -313,3 +313,47 @@ serial/early-boot evidence before attributing it to PMIC state or SD-card startu
 
 Wait for hardware results before MinUI and `rgds-hwkeys`. Later hotkeys:
 Select+Up/Down brightness; Select+Left/Right night mode through KMS CTM/gamma.
+
+## Boot 005: BaseOS 25 hardware follow-up
+
+The user reports short Power no longer suspends and a hold requests shutdown.
+A startup hold appears to work on its first attempt, with delayed screens/LED;
+this is user evidence, not proof of every cold-start/card-reinsertion case.
+Lid suspend/resume and real microphone remain untested. The report snapshot was
+taken before gameplay/power tests ended, so its journal does not prove shutdown.
+
+`dsperate.log` reports `gpu3d: on` at startup, before the user changed the menu.
+The menu reads configuration, while the `DS_GPU3D` environment override starts
+the renderer without updating that configuration. The launcher wrapper now adds
+`--gpu3d` when `DS_GPU3D=1`, keeping the runtime configuration/menu consistent.
+This wrapper correction is in source for the next image; BaseOS 25 is unchanged.
+Ordinary launches without this override retain their original options.
+
+Across 199 reporting windows, median throughput was 59.8 FPS. Three windows had
+large `other` interruptions; excluding those, ten windows fell below 99% speed,
+with a minimum 53.9 FPS. The worst window averaged 16.2 ms emulation + 1.1 ms
+presentation, exceeding the approximately 16.7 ms frame budget. These are window
+averages, not individual-frame percentiles or a controlled same-scene comparison
+with Boot 004. Menu pauses/reconfiguration cannot be treated as gameplay stalls.
+The panels' 59.826 Hz matches the emulated DS rate; changing to 60 Hz is not a
+justified fix for these 54–58 FPS workload-related dips.
+
+The log also switches from RGA presentation at startup to CPU scanline scaling
+after display reopens. The user subsequently confirmed toggling integer scaling
+over/under, then off, before noticing jitter; integer-scaling changes call this
+reopen path. There was little gameplay before opening the menu, so a controlled
+before/after comparison is still needed. Pinned DSperate v3.0.0 `parse_video()` omits `gpu_present`
+and `gpu_mode`, leaving them disabled/default in a new `VideoSetup`; startup
+sets them separately, but `reopen_display()` only calls `parse_video()`. This is
+a credible mechanism for losing RGA after video changes, distinct from GPU 3D.
+The package currently installs a prebuilt emulator. Correcting the reopen path
+requires a patched DSperate source build; do not claim that changing an INI or
+the wrapper fixes it. Preserve explicit off/rga/vulkan settings in that fix.
+
+Early boot feedback remains outstanding. The DS Plus kernel tree already sets
+the green PWM power LED `default-state = "on"`, and PWM/GPIO LED drivers are
+built in. The Specific image's U-Boot uses the Quartz64 configuration without
+DS Plus LED initialization. Earlier-than-kernel feedback needs board-specific
+bootloader work, or a separately tested early GPIO status-LED approach. Current
+reports do not timestamp physical LED illumination; do not claim a precise
+savings or change PMIC/charging behavior to achieve it.

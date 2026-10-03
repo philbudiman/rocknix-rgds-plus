@@ -90,6 +90,15 @@ start_dsperate() { printf '%s\n' "$DS_DUAL_SCREENS" "$DS_FPS" "$DS_FRAME_STATS" 
     assert (Path(temporary) / 'dsperate.log').read_text().splitlines() == [
         'upper=1,lower=0', '1', '1', '1', '1', 'game with spaces.nds', 'nds']
 print('PASS: physical panel/touch mapping, explicit GPU request and timing/mic diagnostics')
+wrapper_path = r / 'projects/ROCKNIX/packages/emulators/standalone/dsperate-sa/scripts/start_dsperate.sh'
+wrapper = wrapper_path.read_text()
+subprocess.run(['bash', '-n', str(wrapper_path)], check=True)
+options = wrapper[wrapper.index('OPTS=('):wrapper.index('#Default layout')]
+for requested, expected in [('', ['--fullscreen']), ('0', ['--fullscreen']), ('1', ['--fullscreen', '--gpu3d'])]:
+    result = bash('DS_GPU3D=$1; ' + options + '\nprintf "%s\\n" "${OPTS[@]}"', requested)
+    assert result.splitlines() == expected, result
+print('PASS: GPU override reaches the CLI/menu without changing ordinary launch options')
+
 
 # Reports expose video settings, not credentials from other INI sections.
 filter_command = next(line for line in launcher.splitlines() if "awk '/^" in line)
