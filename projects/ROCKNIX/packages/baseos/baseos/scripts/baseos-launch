@@ -23,6 +23,11 @@ n=$(( 10#${last:-0} + 1 ))
 LOG=$(printf '%s/boot-%03d' "${LOGROOT}" "${n}")
 mkdir -p "${LOG}"
 
+# Capture later suspend/resume failures even when the emulator never exits.
+# systemd owns these background readers; cap each report's disk use.
+journalctl -b --follow --no-pager | head -c 8388608 > "${LOG}/journal-live.txt" &
+tail -n +1 -F /var/log/sway.log 2>/dev/null | head -c 2097152 > "${LOG}/sway-live.txt" &
+
 # keep the newest ${KEEP} reports
 ls -1d "${LOGROOT}"/boot-* 2>/dev/null | sort | head -n -${KEEP} | xargs -r rm -rf
 
