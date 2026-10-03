@@ -1,4 +1,5 @@
 #!/bin/bash
+# Package-cache benchmark: verify this updated launcher reaches the image.
 # SPDX-License-Identifier: GPL-2.0
 # BaseOS launcher, milestone 1 (hardware bring-up on ROCKNIX).
 #

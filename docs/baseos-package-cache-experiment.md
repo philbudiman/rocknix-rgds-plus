@@ -63,8 +63,14 @@ gh workflow run build-nightly.yml \
   (only documentation differs from population):
   - No-package-reuse baseline: [37102231938](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37102231938).
   - Warm package reuse: [37102237403](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37102237403).
-- Both dispatched at 06:11 UTC on October 3; results pending. Do not duplicate.
-- Changed-launcher run has not been dispatched yet.
+- Both dispatched at 06:11 UTC on October 3. Baseline is still running.
+- Warm run succeeded in **4m48s** (06:11:32 to 06:16:20 UTC): cache restore
+  15s, extraction 38s, fresh image build 2m19s, key calculation 41s, checkout
+  23s. Cleanup, toolchain compilation, compiler-cache download and archive
+  creation/upload were skipped. File comparisons, build identity and SHA256
+  verification passed.
+- A harmless comment is now added to the launcher for the changed-source
+  validation. Dispatch the next run once this commit is pushed; record its ID.
 - Raw population logs: `/private/tmp/rgds-package-population.log`; use
   `gh api repos/philbudiman/rocknix-rgds-plus/actions/jobs/JOB_ID/logs` for logs
   (`gh run view --log` returned an empty file).
