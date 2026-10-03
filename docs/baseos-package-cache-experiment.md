@@ -69,8 +69,9 @@ gh workflow run build-nightly.yml \
   23s. Cleanup, toolchain compilation, compiler-cache download and archive
   creation/upload were skipped. File comparisons, build identity and SHA256
   verification passed.
-- A harmless comment is now added to the launcher for the changed-source
-  validation. Dispatch the next run once this commit is pushed; record its ID.
+- Changed-launcher validation: [37102810042](https://github.com/philbudiman/rocknix-rgds-plus/actions/runs/37102810042),
+  commit `edeb142ea90ae32e7a9a74b30c69641704f44bba`, dispatched 06:21:58 UTC.
+  It adds a harmless launcher comment. Result pending; do not duplicate.
 - Raw population logs: `/private/tmp/rgds-package-population.log`; use
   `gh api repos/philbudiman/rocknix-rgds-plus/actions/jobs/JOB_ID/logs` for logs
   (`gh run view --log` returned an empty file).
